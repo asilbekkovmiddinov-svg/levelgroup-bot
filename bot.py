@@ -11,6 +11,7 @@ from handlers.wallet import router as wallet_router
 from handlers.buy import router as buy_router
 from handlers.deposit import router as deposit_router
 from handlers.chat_id import router as chat_id_router
+from handlers.admin_orders import router as admin_orders_router
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -26,7 +27,7 @@ dp.include_router(wallet_router)
 dp.include_router(buy_router)
 dp.include_router(deposit_router)
 dp.include_router(chat_id_router)
-
+dp.include_router(admin_orders_router)
 
 async def main():
     print("🚀 LEVEL_GROUP Bot ishga tushdi...")
