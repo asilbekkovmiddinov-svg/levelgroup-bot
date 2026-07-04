@@ -43,3 +43,31 @@ async def create_deposit(telegram_id: int, amount: int):
             }
         ) as response:
             return await response.json()
+async def claim_deposit(deposit_id: int, admin_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/deposit/{deposit_id}/claim",
+            json={"admin_id": admin_id}
+        ) as response:
+            return await response.json()
+
+
+async def approve_deposit(deposit_id: int, admin_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/deposit/{deposit_id}/approve",
+            json={"admin_id": admin_id}
+        ) as response:
+            return await response.json()
+
+
+async def reject_deposit(deposit_id: int, admin_id: int, reason: str = "Admin rad etdi"):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/deposit/{deposit_id}/reject",
+            json={
+                "admin_id": admin_id,
+                "reason": reason
+            }
+        ) as response:
+            return await response.json()
