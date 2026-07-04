@@ -1,0 +1,5 @@
+meta:
+  environment: python
+
+run:
+  command: python bot.py
