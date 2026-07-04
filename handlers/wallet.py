@@ -14,8 +14,11 @@ async def wallet(message: Message):
         await message.answer("❌ Hamyon topilmadi. Avval /start bosing.")
         return
 
+    efc = data.get("efc_balance", data.get("efc", 0))
+    uzs = data.get("uzs_balance", data.get("uzs", 0))
+
     await message.answer(
         "💰 Sizning hamyoningiz\n\n"
-        f"🪙 EFC: {data['efc_balance']}\n"
-        f"💵 UZS: {data['uzs_balance']} so'm"
+        f"🪙 EFC: {efc}\n"
+        f"💵 UZS: {uzs} so'm"
     )
