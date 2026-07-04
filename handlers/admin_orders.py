@@ -57,5 +57,38 @@ async def claim_deposit(callback: CallbackQuery):
         )
 
     await callback.message.delete()
-
     await callback.answer("✅ Buyurtma sizga biriktirildi.")
+
+
+@router.callback_query(F.data.startswith("approve_deposit_"))
+async def approve_deposit(callback: CallbackQuery):
+    caption = callback.message.caption or ""
+
+    caption = caption.replace(
+        "📌 Status: PROCESSING",
+        "🟢 Status: COMPLETED"
+    )
+
+    await callback.message.edit_caption(
+        caption=caption,
+        reply_markup=None
+    )
+
+    await callback.answer("✅ Buyurtma bajarildi.")
+
+
+@router.callback_query(F.data.startswith("reject_deposit_"))
+async def reject_deposit(callback: CallbackQuery):
+    caption = callback.message.caption or ""
+
+    caption = caption.replace(
+        "📌 Status: PROCESSING",
+        "🔴 Status: REJECTED"
+    )
+
+    await callback.message.edit_caption(
+        caption=caption,
+        reply_markup=None
+    )
+
+    await callback.answer("❌ Buyurtma bekor qilindi.")
