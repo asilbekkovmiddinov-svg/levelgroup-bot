@@ -87,7 +87,7 @@ async def claim_deposit_handler(callback: CallbackQuery):
 
     await callback.message.delete()
     await callback.answer("✅ Depozit sizga biriktirildi.")
-    @router.callback_query(F.data.startswith("approve_deposit_"))
+@router.callback_query(F.data.startswith("approve_deposit_"))
 async def approve_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("approve_deposit_", ""))
 
