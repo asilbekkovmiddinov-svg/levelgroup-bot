@@ -32,3 +32,14 @@ async def create_order(telegram_id: int, product_id: int):
             }
         ) as response:
             return await response.json()
+            
+async def create_deposit(telegram_id: int, amount: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/deposit/create",
+            json={
+                "telegram_id": telegram_id,
+                "amount": amount
+            }
+        ) as response:
+            return await response.json()
