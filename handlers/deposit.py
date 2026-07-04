@@ -1,8 +1,9 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
+from config import NEW_ORDERS_CHANNEL_ID
 from services.api import create_deposit
 
 router = Router()
@@ -59,6 +60,33 @@ async def deposit_amount(message: Message, state: FSMContext):
         )
 
         status = result.get("status", "PENDING")
+        username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🙋 Qabul qilish",
+                        callback_data=f"claim_deposit_{order_id}"
+                    )
+                ]
+            ]
+        )
+
+        await message.bot.send_message(
+            chat_id=NEW_ORDERS_CHANNEL_ID,
+            text=(
+                "🆕 YANGI DEPOZIT\n\n"
+                f"🆔 Buyurtma: #{order_id}\n\n"
+                f"👤 Mijoz: {username}\n"
+                f"🆔 Telegram ID: {message.from_user.id}\n\n"
+                "🎮 Xizmat: UZS to‘ldirish\n"
+                f"💵 Summa: {amount:,} so‘m\n\n"
+                f"📌 Status: {status}\n\n"
+                "👇 Adminlardan biri qabul qilsin."
+            ),
+            reply_markup=keyboard
+        )
 
         await message.answer(
             "✅ To‘ldirish so‘rovi yaratildi!\n\n"
