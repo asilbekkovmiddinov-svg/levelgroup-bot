@@ -5,8 +5,10 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from config import BOT_TOKEN
+
 from handlers.start import router as start_router
 from handlers.wallet import router as wallet_router
+from handlers.buy import router as buy_router
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -19,6 +21,7 @@ dp = Dispatcher()
 
 dp.include_router(start_router)
 dp.include_router(wallet_router)
+dp.include_router(buy_router)
 
 
 async def main():
