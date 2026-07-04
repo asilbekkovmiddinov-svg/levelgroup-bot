@@ -122,15 +122,18 @@ async def approve_deposit_handler(callback: CallbackQuery):
     )
 
     await callback.message.bot.send_message(
-        chat_id=COMPLETED_ORDERS_CHANNEL_ID,
-        text=(
-            "✅ BUYURTMA BAJARILDI\n\n"
-            "🎮 Xizmat: UZS to‘ldirish\n"
-            f"⌛️ Bajarish vaqti: {processing_time}\n\n"
-            "🔥 LEVEL_GROUP"
+    chat_id=COMPLETED_ORDERS_CHANNEL_ID,
+    text=(
+        "✅ BUYURTMA BAJARILDI\n\n"
+        f"🆔 Buyurtma: #{deposit_id}\n\n"
+        f"👤 Buyurtmachi: {result['username']}\n\n"
+        "🎮 Xizmat: UZS to'ldirish\n"
+        f"💵 Summa: {int(result['amount']):,} so'm\n\n"
+        f"👨‍💼 Admin: {admin_name}\n\n"
+        f"⏳ Bajarish vaqti: {processing_time}\n\n"
+        "🔥 LEVEL_GROUP"
         )
     )
-
     await callback.answer("✅ Depozit bajarildi.")
 
 
