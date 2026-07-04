@@ -13,6 +13,7 @@ MIN_DEPOSIT_AMOUNT = 15000
 
 class DepositState(StatesGroup):
     amount = State()
+    receipt = State()
 
 
 @router.callback_query(F.data == "deposit_start")
@@ -44,57 +45,86 @@ async def deposit_amount(message: Message, state: FSMContext):
         )
         return
 
+    await state.update_data(amount=amount)
+    await state.set_state(DepositState.receipt)
+
+    await message.answer(
+        "💳 To‘lov rekvizitlari\n\n"
+        "🏦 Bank: HUMO / Uzcard\n"
+        "💳 Karta: 0000 0000 0000 0000\n"
+        "👤 Qabul qiluvchi: LEVEL GROUP\n\n"
+        f"💵 Summa: {amount:,} so‘m\n\n"
+        "✅ To‘lov qilganingizdan keyin chek rasmini yuboring."
+    )
+@router.message(DepositState.receipt, F.photo)
+async def deposit_receipt(message: Message, state: FSMContext):
+    data = await state.get_data()
+
+    amount = data["amount"]
+    receipt_photo = message.photo[-1].file_id
+
     result = await create_deposit(
         telegram_id=message.from_user.id,
         amount=amount
     )
 
-    await state.clear()
-
-    if result.get("message") == "Deposit request created":
-        order_id = (
-            result.get("id")
-            or result.get("deposit_id")
-            or result.get("order_id")
-            or "-"
-        )
-
-        status = result.get("status", "PENDING")
-        username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="🙋 Qabul qilish",
-                        callback_data=f"claim_deposit_{order_id}"
-                    )
-                ]
-            ]
-        )
-
-        await message.bot.send_message(
-            chat_id=NEW_ORDERS_CHANNEL_ID,
-            text=(
-                "🆕 YANGI DEPOZIT\n\n"
-                f"🆔 Buyurtma: #{order_id}\n\n"
-                f"👤 Mijoz: {username}\n"
-                f"🆔 Telegram ID: {message.from_user.id}\n\n"
-                "🎮 Xizmat: UZS to‘ldirish\n"
-                f"💵 Summa: {amount:,} so‘m\n\n"
-                f"📌 Status: {status}\n\n"
-                "👇 Adminlardan biri qabul qilsin."
-            ),
-            reply_markup=keyboard
-        )
-
-        await message.answer(
-            "✅ To‘ldirish so‘rovi yaratildi!\n\n"
-            f"🆔 Buyurtma: #{order_id}\n"
-            f"💵 Summa: {amount:,} so‘m\n"
-            f"📌 Status: {status}\n\n"
-            "Admin tasdiqlagandan so‘ng balansingizga tushadi."
-        )
+    if result.get("message") != "Deposit request created":
+        await message.answer("❌ Xatolik yuz berdi. Qayta urinib ko'ring.")
+        await state.clear()
         return
 
-    await message.answer("❌ So‘rov yaratishda xatolik yuz berdi.")
+    order_id = (
+        result.get("id")
+        or result.get("deposit_id")
+        or result.get("order_id")
+        or "-"
+    )
+
+    username = (
+        f"@{message.from_user.username}"
+        if message.from_user.username
+        else message.from_user.first_name
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🙋 Qabul qilish",
+                    callback_data=f"claim_deposit_{order_id}"
+                )
+            ]
+        ]
+    )
+
+    await message.bot.send_photo(
+        chat_id=NEW_ORDERS_CHANNEL_ID,
+        photo=receipt_photo,
+        caption=(
+            "🆕 YANGI DEPOZIT\n\n"
+            f"🆔 Buyurtma: #{order_id}\n\n"
+            f"👤 Mijoz: {username}\n"
+            f"🆔 Telegram ID: {message.from_user.id}\n\n"
+            "🎮 Xizmat: UZS to'ldirish\n"
+            f"💵 Summa: {amount:,} so'm\n\n"
+            "📌 Status: PENDING\n\n"
+            "👇 Adminlardan biri qabul qilsin."
+        ),
+        reply_markup=keyboard
+    )
+
+    await state.clear()
+
+    await message.answer(
+        "✅ Chek qabul qilindi!\n\n"
+        f"🆔 Buyurtma: #{order_id}\n"
+        f"💵 Summa: {amount:,} so'm\n\n"
+        "⏳ Admin tekshirayotganidan so'ng balansingiz to'ldiriladi."
+    )
+
+
+@router.message(DepositState.receipt)
+async def receipt_not_photo(message: Message):
+    await message.answer(
+        "❌ Iltimos, chekni rasm sifatida yuboring."
+    )
