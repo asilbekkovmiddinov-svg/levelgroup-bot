@@ -1,5 +1,8 @@
 meta:
   environment: python
+  toolchain:
+    name: pip
+    version: "3.12"
 
 run:
   command: python bot.py
