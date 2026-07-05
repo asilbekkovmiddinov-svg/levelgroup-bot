@@ -12,6 +12,7 @@ from config import (
 )
 from services.api import (
     claim_deposit,
+    claim_withdraw,
     approve_deposit,
     reject_deposit,
     approve_withdraw,
@@ -44,10 +45,9 @@ def get_admin_name(user):
 async def notify_user(bot, telegram_id, text):
     try:
         await bot.send_message(chat_id=telegram_id, text=text)
+        return True
     except Exception:
         return False
-
-    return True
 
 
 @router.callback_query(F.data.startswith("claim_deposit_"))
@@ -193,6 +193,62 @@ async def reject_deposit_handler(callback: CallbackQuery):
     )
 
     await callback.answer("❌ Depozit rad etildi.")
+@router.callback_query(F.data.startswith("claim_withdraw_"))
+async def claim_withdraw_handler(callback: CallbackQuery):
+    withdraw_id = int(callback.data.replace("claim_withdraw_", ""))
+
+    result = await claim_withdraw(
+        withdraw_id=withdraw_id,
+        admin_id=callback.from_user.id,
+    )
+
+    if result.get("message") == "Withdraw already claimed":
+        await callback.answer(
+            "❌ Bu withdraw boshqa admin tomonidan qabul qilingan.",
+            show_alert=True,
+        )
+        return
+
+    if result.get("message") != "Withdraw claimed":
+        await callback.answer("❌ Xatolik yuz berdi.", show_alert=True)
+        return
+
+    admin_name = get_admin_name(callback.from_user)
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Tasdiqlash",
+                    callback_data=f"approve_withdraw_{withdraw_id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Rad etish",
+                    callback_data=f"reject_withdraw_{withdraw_id}",
+                ),
+            ]
+        ]
+    )
+
+    old_text = callback.message.text or ""
+
+    new_text = (
+        old_text
+        + "\n\n━━━━━━━━━━━━━━\n"
+        + f"👨‍💼 Qabul qilgan admin: {admin_name}\n"
+        + "📌 Status: CLAIMED"
+    )
+
+    await callback.message.bot.send_message(
+        chat_id=ADMIN_CHAT_ID,
+        text=new_text,
+        reply_markup=keyboard,
+    )
+
+    await callback.message.delete()
+    await callback.answer("✅ Withdraw sizga biriktirildi.")
+
+
 @router.callback_query(F.data.startswith("approve_withdraw_"))
 async def approve_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("approve_withdraw_", ""))
@@ -201,6 +257,13 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         withdraw_id=withdraw_id,
         admin_id=callback.from_user.id,
     )
+
+    if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
+        await callback.answer(
+            "❌ Bu withdraw boshqa adminga biriktirilgan.",
+            show_alert=True,
+        )
+        return
 
     if result.get("message") != "Withdraw tasdiqlandi":
         await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
@@ -217,7 +280,7 @@ async def approve_withdraw_handler(callback: CallbackQuery):
 
     await callback.message.edit_text(
         text=(callback.message.text or "").replace(
-            "📌 Status: PENDING",
+            "📌 Status: CLAIMED",
             "🟢 Status: APPROVED",
         ),
         reply_markup=None,
@@ -284,6 +347,13 @@ async def reject_withdraw_handler(callback: CallbackQuery):
         admin_id=callback.from_user.id,
     )
 
+    if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
+        await callback.answer(
+            "❌ Bu withdraw boshqa adminga biriktirilgan.",
+            show_alert=True,
+        )
+        return
+
     if result.get("message") != "Withdraw rad etildi, pul balansga qaytarildi":
         await callback.answer("❌ Rad etishda xatolik.", show_alert=True)
         return
@@ -300,7 +370,7 @@ async def reject_withdraw_handler(callback: CallbackQuery):
 
     await callback.message.edit_text(
         text=(callback.message.text or "").replace(
-            "📌 Status: PENDING",
+            "📌 Status: CLAIMED",
             "🔴 Status: REJECTED",
         ),
         reply_markup=None,
