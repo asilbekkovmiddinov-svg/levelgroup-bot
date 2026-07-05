@@ -60,7 +60,7 @@ async def create_deposit(
             },
         ) as response:
             return await safe_json(response)
-    async def create_withdraw(
+async def create_withdraw(
     telegram_id: int,
     amount: int,
     card_number: str,
@@ -88,9 +88,7 @@ async def claim_deposit(
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/deposit/{deposit_id}/claim",
-            json={
-                "admin_id": admin_id,
-            },
+            json={"admin_id": admin_id},
         ) as response:
             return await safe_json(response)
 
@@ -102,9 +100,7 @@ async def approve_deposit(
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/deposit/{deposit_id}/approve",
-            json={
-                "admin_id": admin_id,
-            },
+            json={"admin_id": admin_id},
         ) as response:
             return await safe_json(response)
 
@@ -132,9 +128,7 @@ async def approve_withdraw(
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/withdraw/approve/{withdraw_id}",
-            params={
-                "admin_id": admin_id,
-            },
+            params={"admin_id": admin_id},
         ) as response:
             return await safe_json(response)
 
@@ -146,8 +140,6 @@ async def reject_withdraw(
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/withdraw/reject/{withdraw_id}",
-            params={
-                "admin_id": admin_id,
-            },
+            params={"admin_id": admin_id},
         ) as response:
             return await safe_json(response)
