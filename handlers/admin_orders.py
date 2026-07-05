@@ -41,6 +41,15 @@ def get_admin_name(user):
     return user.full_name
 
 
+async def notify_user(bot, telegram_id, text):
+    try:
+        await bot.send_message(chat_id=telegram_id, text=text)
+    except Exception:
+        return False
+
+    return True
+
+
 @router.callback_query(F.data.startswith("claim_deposit_"))
 async def claim_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("claim_deposit_", ""))
@@ -108,6 +117,7 @@ async def approve_deposit_handler(callback: CallbackQuery):
         deposit_id=deposit_id,
         admin_id=callback.from_user.id,
     )
+
     if result.get("message") != "Deposit approved":
         await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
         return
@@ -129,7 +139,7 @@ async def approve_deposit_handler(callback: CallbackQuery):
             f"🆔 Telegram ID: {result.get('telegram_id', 'Nomaʼlum')}\n\n"
             "🎮 Xizmat: UZS to'ldirish\n"
             f"💵 Summa: {int(result.get('amount', 0)):,} so'm\n\n"
-            f"👨‍💼 Admin: {admin_name}\n\n"
+            f"👨‍💼 Admin: {admin_name}\n"
             f"⏳ Bajarish vaqti: {processing_time}"
         ),
     )
@@ -138,11 +148,11 @@ async def approve_deposit_handler(callback: CallbackQuery):
         chat_id=COMPLETED_ORDERS_CHANNEL_ID,
         text=(
             "✅ BUYURTMA BAJARILDI\n\n"
-            f"🆔 Buyurtma: #{deposit_id}\n\n"
+            f"🆔 Buyurtma: #{deposit_id}\n"
             f"👤 Buyurtmachi: {result.get('username', 'Nomaʼlum')}\n\n"
             "🎮 Xizmat: UZS to'ldirish\n"
             f"💵 Summa: {int(result.get('amount', 0)):,} so'm\n\n"
-            f"👨‍💼 Admin: {admin_name}\n\n"
+            f"👨‍💼 Admin: {admin_name}\n"
             f"⏳ Bajarish vaqti: {processing_time}\n\n"
             "🔥 LEVEL_GROUP"
         ),
@@ -183,8 +193,6 @@ async def reject_deposit_handler(callback: CallbackQuery):
     )
 
     await callback.answer("❌ Depozit rad etildi.")
-
-
 @router.callback_query(F.data.startswith("approve_withdraw_"))
 async def approve_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("approve_withdraw_", ""))
@@ -199,6 +207,13 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         return
 
     admin_name = get_admin_name(callback.from_user)
+    processing_time = format_seconds(result.get("processing_seconds"))
+
+    telegram_id = result.get("telegram_id")
+    amount = int(result.get("amount", 0))
+    bank_name = result.get("bank_name", "Nomaʼlum")
+    card_number = result.get("card_number", "Nomaʼlum")
+    card_holder = result.get("card_holder", "Nomaʼlum")
 
     await callback.message.edit_text(
         text=(callback.message.text or "").replace(
@@ -208,13 +223,35 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         reply_markup=None,
     )
 
+    user_notified = await notify_user(
+        bot=callback.message.bot,
+        telegram_id=telegram_id,
+        text=(
+            "✅ Pul yechish so‘rovingiz tasdiqlandi!\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"👤 Karta egasi: {card_holder}\n\n"
+            "💳 To‘lov kartangizga yuboriladi.\n\n"
+            "🔥 LEVEL_GROUP"
+        ),
+    )
+
     await callback.message.bot.send_message(
         chat_id=ADMIN_LOGS_CHANNEL_ID,
         text=(
             "✅ WITHDRAW TASDIQLANDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
-            f"👨‍💼 Admin: {admin_name}\n\n"
-            "⏳ Muddat: 24 soatgacha"
+            f"🆔 Telegram ID: {telegram_id}\n\n"
+            "🎮 Xizmat: UZS yechish\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"👤 Karta egasi: {card_holder}\n\n"
+            f"👨‍💼 Admin: {admin_name}\n"
+            f"⏳ Bajarish vaqti: {processing_time}\n"
+            f"📩 Mijozga xabar: {'Yuborildi' if user_notified else 'Yuborilmadi'}"
         ),
     )
 
@@ -223,7 +260,14 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         text=(
             "✅ PUL YECHISH BAJARILDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
-            f"👨‍💼 Admin: {admin_name}\n\n"
+            f"🆔 Telegram ID: {telegram_id}\n\n"
+            "🎮 Xizmat: UZS yechish\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"👤 Karta egasi: {card_holder}\n\n"
+            f"👨‍💼 Admin: {admin_name}\n"
+            f"⏳ Bajarish vaqti: {processing_time}\n\n"
             "🔥 LEVEL_GROUP"
         ),
     )
@@ -245,6 +289,14 @@ async def reject_withdraw_handler(callback: CallbackQuery):
         return
 
     admin_name = get_admin_name(callback.from_user)
+    processing_time = format_seconds(result.get("processing_seconds"))
+
+    telegram_id = result.get("telegram_id")
+    amount = int(result.get("amount", 0))
+    bank_name = result.get("bank_name", "Nomaʼlum")
+    card_number = result.get("card_number", "Nomaʼlum")
+    card_holder = result.get("card_holder", "Nomaʼlum")
+    reject_reason = result.get("reject_reason", "Admin rad etdi")
 
     await callback.message.edit_text(
         text=(callback.message.text or "").replace(
@@ -254,13 +306,37 @@ async def reject_withdraw_handler(callback: CallbackQuery):
         reply_markup=None,
     )
 
+    user_notified = await notify_user(
+        bot=callback.message.bot,
+        telegram_id=telegram_id,
+        text=(
+            "❌ Pul yechish so‘rovingiz rad etildi.\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"👤 Karta egasi: {card_holder}\n\n"
+            f"📌 Sabab: {reject_reason}\n\n"
+            "💵 Mablag‘ balansingizga qaytarildi.\n\n"
+            "🔥 LEVEL_GROUP"
+        ),
+    )
+
     await callback.message.bot.send_message(
         chat_id=ADMIN_LOGS_CHANNEL_ID,
         text=(
             "❌ WITHDRAW RAD ETILDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"🆔 Telegram ID: {telegram_id}\n\n"
+            "🎮 Xizmat: UZS yechish\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"👤 Karta egasi: {card_holder}\n\n"
             f"👨‍💼 Admin: {admin_name}\n"
-            "💵 Mablag‘ foydalanuvchi balansiga qaytarildi."
+            f"📌 Sabab: {reject_reason}\n"
+            f"⏳ Ko‘rib chiqish vaqti: {processing_time}\n"
+            f"📩 Mijozga xabar: {'Yuborildi' if user_notified else 'Yuborilmadi'}"
         ),
     )
 
