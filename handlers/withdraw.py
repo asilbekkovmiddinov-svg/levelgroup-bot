@@ -17,6 +17,7 @@ MIN_WITHDRAW_AMOUNT = 15000
 
 
 class WithdrawState(StatesGroup):
+    bank_name = State()
     card = State()
     full_name = State()
     amount = State()
@@ -30,16 +31,36 @@ def format_card(card: str):
 @router.callback_query(F.data == "withdraw_start")
 async def withdraw_start(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await state.set_state(WithdrawState.card)
+    await state.set_state(WithdrawState.bank_name)
 
     await callback.message.answer(
         "💸 UZS yechish\n\n"
-        "Pul yuboriladigan karta raqamini kiriting.\n\n"
+        "Avval karta bank nomini kiriting.\n\n"
         "Masalan:\n"
-        "8600 0000 0000 0000"
+        "Kapitalbank\n"
+        "Ipak Yo‘li Bank\n"
+        "Agrobank"
     )
 
     await callback.answer()
+
+
+@router.message(WithdrawState.bank_name)
+async def withdraw_bank_name(message: Message, state: FSMContext):
+    bank_name = message.text.strip()
+
+    if len(bank_name) < 2:
+        await message.answer("❌ Bank nomini to‘liq kiriting.")
+        return
+
+    await state.update_data(bank_name=bank_name)
+    await state.set_state(WithdrawState.card)
+
+    await message.answer(
+        "💳 Pul yuboriladigan karta raqamini kiriting.\n\n"
+        "Masalan:\n"
+        "8600 0000 0000 0000"
+    )
 
 
 @router.message(WithdrawState.card)
@@ -66,8 +87,6 @@ async def withdraw_card(message: Message, state: FSMContext):
         "Masalan:\n"
         "Aliyev Ali"
     )
-
-
 @router.message(WithdrawState.full_name)
 async def withdraw_full_name(message: Message, state: FSMContext):
     full_name = message.text.strip()
@@ -84,6 +103,8 @@ async def withdraw_full_name(message: Message, state: FSMContext):
         f"Minimal summa: {MIN_WITHDRAW_AMOUNT:,} so‘m\n\n"
         "Masalan: 50000"
     )
+
+
 @router.message(WithdrawState.amount)
 async def withdraw_amount(message: Message, state: FSMContext):
     if not message.text.isdigit():
@@ -100,6 +121,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
+    bank_name = data["bank_name"]
     card = data["card"]
     full_name = data["full_name"]
     formatted_card = format_card(card)
@@ -110,18 +132,17 @@ async def withdraw_amount(message: Message, state: FSMContext):
         result = await create_withdraw(
             telegram_id=message.from_user.id,
             amount=amount,
+            card_number=formatted_card,
+            card_holder=full_name,
+            bank_name=bank_name,
         )
     except Exception:
-        await message.answer(
-            "❌ Backend bilan aloqa qilishda xatolik yuz berdi."
-        )
+        await message.answer("❌ Backend bilan aloqa qilishda xatolik yuz berdi.")
         await state.clear()
         return
 
     if not result:
-        await message.answer(
-            "❌ Serverdan javob kelmadi. Qayta urinib ko‘ring."
-        )
+        await message.answer("❌ Serverdan javob kelmadi. Qayta urinib ko‘ring.")
         await state.clear()
         return
 
@@ -173,6 +194,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
             f"🆔 Telegram ID: {message.from_user.id}\n\n"
             "🎮 Xizmat: UZS yechish\n"
             f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
             f"💳 Karta: {formatted_card}\n"
             f"👤 Karta egasi: {full_name}\n\n"
             "⏳ Muddat: 24 soatgacha\n"
@@ -188,6 +210,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
         "✅ Pul yechish so‘rovingiz qabul qilindi!\n\n"
         f"🆔 Buyurtma: #{withdraw_id}\n"
         f"💵 Summa: {amount:,} so‘m\n"
+        f"🏦 Bank: {bank_name}\n"
         f"💳 Karta: {formatted_card}\n"
         f"👤 Karta egasi: {full_name}\n\n"
         "⏳ To‘lov 24 soat ichida kartangizga yuboriladi."
