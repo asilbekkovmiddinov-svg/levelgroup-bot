@@ -93,6 +93,18 @@ async def claim_deposit(
             return await safe_json(response)
 
 
+async def claim_withdraw(
+    withdraw_id: int,
+    admin_id: int,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/withdraw/{withdraw_id}/claim",
+            params={"admin_id": admin_id},
+        ) as response:
+            return await safe_json(response)
+
+
 async def approve_deposit(
     deposit_id: int,
     admin_id: int,
