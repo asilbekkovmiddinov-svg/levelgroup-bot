@@ -1,15 +1,7 @@
 from aiogram import Router, F
-from aiogram.types import (
-    CallbackQuery,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-from config import (
-    ADMIN_CHAT_ID,
-    ADMIN_LOGS_CHANNEL_ID,
-    COMPLETED_ORDERS_CHANNEL_ID,
-)
+from config import ADMIN_CHAT_ID, ADMIN_LOGS_CHANNEL_ID, COMPLETED_ORDERS_CHANNEL_ID
 from services.api import (
     claim_deposit,
     claim_withdraw,
@@ -38,8 +30,14 @@ def format_seconds(seconds):
 def get_admin_name(user):
     if user.username:
         return f"@{user.username}"
-
     return user.full_name
+
+
+def get_line_value(text: str, label: str, default: str = "Nomaʼlum"):
+    for line in text.splitlines():
+        if line.startswith(label):
+            return line.replace(label, "").strip()
+    return default
 
 
 async def notify_user(bot, telegram_id, text):
@@ -54,20 +52,20 @@ async def notify_user(bot, telegram_id, text):
 async def claim_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("claim_deposit_", ""))
 
-    result = await claim_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    result = await claim_deposit(deposit_id=deposit_id, admin_id=callback.from_user.id)
 
     if result.get("message") == "Deposit already claimed":
         await callback.answer(
-            "❌ Bu depozit allaqachon boshqa admin tomonidan qabul qilingan.",
+            "❌ Bu depozit boshqa admin tomonidan qabul qilingan.",
             show_alert=True,
         )
         return
 
     if result.get("message") != "Deposit claimed":
-        await callback.answer("❌ Xatolik yuz berdi.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -90,7 +88,6 @@ async def claim_deposit_handler(callback: CallbackQuery):
     )
 
     old_caption = callback.message.caption or ""
-
     new_caption = (
         old_caption
         + "\n\n━━━━━━━━━━━━━━\n"
@@ -113,13 +110,13 @@ async def claim_deposit_handler(callback: CallbackQuery):
 async def approve_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("approve_deposit_", ""))
 
-    result = await approve_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    result = await approve_deposit(deposit_id=deposit_id, admin_id=callback.from_user.id)
 
     if result.get("message") != "Deposit approved":
-        await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -165,13 +162,13 @@ async def approve_deposit_handler(callback: CallbackQuery):
 async def reject_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("reject_deposit_", ""))
 
-    result = await reject_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    result = await reject_deposit(deposit_id=deposit_id, admin_id=callback.from_user.id)
 
     if result.get("message") != "Deposit rejected":
-        await callback.answer("❌ Rad etishda xatolik.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -197,10 +194,7 @@ async def reject_deposit_handler(callback: CallbackQuery):
 async def claim_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("claim_withdraw_", ""))
 
-    result = await claim_withdraw(
-        withdraw_id=withdraw_id,
-        admin_id=callback.from_user.id,
-    )
+    result = await claim_withdraw(withdraw_id=withdraw_id, admin_id=callback.from_user.id)
 
     if result.get("message") == "Withdraw already claimed":
         await callback.answer(
@@ -210,7 +204,10 @@ async def claim_withdraw_handler(callback: CallbackQuery):
         return
 
     if result.get("message") != "Withdraw claimed":
-        await callback.answer("❌ Xatolik yuz berdi.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -231,7 +228,6 @@ async def claim_withdraw_handler(callback: CallbackQuery):
     )
 
     old_text = callback.message.text or ""
-
     new_text = (
         old_text
         + "\n\n━━━━━━━━━━━━━━\n"
@@ -253,20 +249,23 @@ async def claim_withdraw_handler(callback: CallbackQuery):
 async def approve_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("approve_withdraw_", ""))
 
+    old_text = callback.message.text or ""
+    username = get_line_value(old_text, "👤 Mijoz:")
+
     result = await approve_withdraw(
         withdraw_id=withdraw_id,
         admin_id=callback.from_user.id,
     )
 
     if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
-        await callback.answer(
-            "❌ Bu withdraw boshqa adminga biriktirilgan.",
-            show_alert=True,
-        )
+        await callback.answer("❌ Bu withdraw boshqa adminga biriktirilgan.", show_alert=True)
         return
 
     if result.get("message") != "Withdraw tasdiqlandi":
-        await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -279,10 +278,7 @@ async def approve_withdraw_handler(callback: CallbackQuery):
     card_holder = result.get("card_holder", "Nomaʼlum")
 
     await callback.message.edit_text(
-        text=(callback.message.text or "").replace(
-            "📌 Status: CLAIMED",
-            "🟢 Status: APPROVED",
-        ),
+        text=old_text.replace("📌 Status: CLAIMED", "🟢 Status: APPROVED"),
         reply_markup=None,
     )
 
@@ -306,6 +302,7 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         text=(
             "✅ WITHDRAW TASDIQLANDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👤 Mijoz: {username}\n"
             f"🆔 Telegram ID: {telegram_id}\n\n"
             "🎮 Xizmat: UZS yechish\n"
             f"💵 Summa: {amount:,} so‘m\n"
@@ -323,6 +320,7 @@ async def approve_withdraw_handler(callback: CallbackQuery):
         text=(
             "✅ PUL YECHISH BAJARILDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👤 Buyurtmachi: {username}\n"
             f"🆔 Telegram ID: {telegram_id}\n\n"
             "🎮 Xizmat: UZS yechish\n"
             f"💵 Summa: {amount:,} so‘m\n"
@@ -342,20 +340,23 @@ async def approve_withdraw_handler(callback: CallbackQuery):
 async def reject_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("reject_withdraw_", ""))
 
+    old_text = callback.message.text or ""
+    username = get_line_value(old_text, "👤 Mijoz:")
+
     result = await reject_withdraw(
         withdraw_id=withdraw_id,
         admin_id=callback.from_user.id,
     )
 
     if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
-        await callback.answer(
-            "❌ Bu withdraw boshqa adminga biriktirilgan.",
-            show_alert=True,
-        )
+        await callback.answer("❌ Bu withdraw boshqa adminga biriktirilgan.", show_alert=True)
         return
 
     if result.get("message") != "Withdraw rad etildi, pul balansga qaytarildi":
-        await callback.answer("❌ Rad etishda xatolik.", show_alert=True)
+        await callback.answer(
+            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            show_alert=True,
+        )
         return
 
     admin_name = get_admin_name(callback.from_user)
@@ -369,10 +370,7 @@ async def reject_withdraw_handler(callback: CallbackQuery):
     reject_reason = result.get("reject_reason", "Admin rad etdi")
 
     await callback.message.edit_text(
-        text=(callback.message.text or "").replace(
-            "📌 Status: CLAIMED",
-            "🔴 Status: REJECTED",
-        ),
+        text=old_text.replace("📌 Status: CLAIMED", "🔴 Status: REJECTED"),
         reply_markup=None,
     )
 
@@ -397,6 +395,7 @@ async def reject_withdraw_handler(callback: CallbackQuery):
         text=(
             "❌ WITHDRAW RAD ETILDI\n\n"
             f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👤 Mijoz: {username}\n"
             f"🆔 Telegram ID: {telegram_id}\n\n"
             "🎮 Xizmat: UZS yechish\n"
             f"💵 Summa: {amount:,} so‘m\n"
