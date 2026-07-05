@@ -1,12 +1,22 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from config import (
     ADMIN_CHAT_ID,
     ADMIN_LOGS_CHANNEL_ID,
-    COMPLETED_ORDERS_CHANNEL_ID
+    COMPLETED_ORDERS_CHANNEL_ID,
 )
-from services.api import claim_deposit, approve_deposit, reject_deposit
+from services.api import (
+    claim_deposit,
+    approve_deposit,
+    reject_deposit,
+    approve_withdraw,
+    reject_withdraw,
+)
 
 router = Router()
 
@@ -27,6 +37,7 @@ def format_seconds(seconds):
 def get_admin_name(user):
     if user.username:
         return f"@{user.username}"
+
     return user.full_name
 
 
@@ -36,13 +47,13 @@ async def claim_deposit_handler(callback: CallbackQuery):
 
     result = await claim_deposit(
         deposit_id=deposit_id,
-        admin_id=callback.from_user.id
+        admin_id=callback.from_user.id,
     )
 
     if result.get("message") == "Deposit already claimed":
         await callback.answer(
             "❌ Bu depozit allaqachon boshqa admin tomonidan qabul qilingan.",
-            show_alert=True
+            show_alert=True,
         )
         return
 
@@ -57,15 +68,15 @@ async def claim_deposit_handler(callback: CallbackQuery):
             [
                 InlineKeyboardButton(
                     text="✅ Bajarildi",
-                    callback_data=f"approve_deposit_{deposit_id}"
+                    callback_data=f"approve_deposit_{deposit_id}",
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="❌ Bekor qilindi",
-                    callback_data=f"reject_deposit_{deposit_id}"
+                    callback_data=f"reject_deposit_{deposit_id}",
                 )
-            ]
+            ],
         ]
     )
 
@@ -82,20 +93,21 @@ async def claim_deposit_handler(callback: CallbackQuery):
         chat_id=ADMIN_CHAT_ID,
         photo=callback.message.photo[-1].file_id,
         caption=new_caption,
-        reply_markup=keyboard
+        reply_markup=keyboard,
     )
 
     await callback.message.delete()
     await callback.answer("✅ Depozit sizga biriktirildi.")
+
+
 @router.callback_query(F.data.startswith("approve_deposit_"))
 async def approve_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("approve_deposit_", ""))
 
     result = await approve_deposit(
         deposit_id=deposit_id,
-        admin_id=callback.from_user.id
+        admin_id=callback.from_user.id,
     )
-
     if result.get("message") != "Deposit approved":
         await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
         return
@@ -106,38 +118,36 @@ async def approve_deposit_handler(callback: CallbackQuery):
     caption = callback.message.caption or ""
     caption = caption.replace("📌 Status: CLAIMED", "🟢 Status: COMPLETED")
 
-    await callback.message.edit_caption(
-        caption=caption,
-        reply_markup=None
+    await callback.message.edit_caption(caption=caption, reply_markup=None)
+
+    await callback.message.bot.send_message(
+        chat_id=ADMIN_LOGS_CHANNEL_ID,
+        text=(
+            "✅ DEPOZIT BAJARILDI\n\n"
+            f"🆔 Buyurtma: #{deposit_id}\n"
+            f"👤 Mijoz: {result.get('username', 'Nomaʼlum')}\n"
+            f"🆔 Telegram ID: {result.get('telegram_id', 'Nomaʼlum')}\n\n"
+            "🎮 Xizmat: UZS to'ldirish\n"
+            f"💵 Summa: {int(result.get('amount', 0)):,} so'm\n\n"
+            f"👨‍💼 Admin: {admin_name}\n\n"
+            f"⏳ Bajarish vaqti: {processing_time}"
+        ),
     )
 
     await callback.message.bot.send_message(
-    chat_id=ADMIN_LOGS_CHANNEL_ID,
-    text=(
-        "✅ DEPOZIT BAJARILDI\n\n"
-        f"🆔 Buyurtma: #{deposit_id}\n"
-        f"👤 Mijoz: {result.get('username', 'Nomaʼlum')}\n"
-        f"🆔 Telegram ID: {result.get('telegram_id', 'Nomaʼlum')}\n\n"
-        "🎮 Xizmat: UZS to'ldirish\n"
-        f"💵 Summa: {int(result.get('amount', 0)):,} so'm\n\n"
-        f"👨‍💼 Admin: {admin_name}\n\n"
-        f"⏳ Bajarish vaqti: {processing_time}"
-        )
+        chat_id=COMPLETED_ORDERS_CHANNEL_ID,
+        text=(
+            "✅ BUYURTMA BAJARILDI\n\n"
+            f"🆔 Buyurtma: #{deposit_id}\n\n"
+            f"👤 Buyurtmachi: {result.get('username', 'Nomaʼlum')}\n\n"
+            "🎮 Xizmat: UZS to'ldirish\n"
+            f"💵 Summa: {int(result.get('amount', 0)):,} so'm\n\n"
+            f"👨‍💼 Admin: {admin_name}\n\n"
+            f"⏳ Bajarish vaqti: {processing_time}\n\n"
+            "🔥 LEVEL_GROUP"
+        ),
     )
 
-    await callback.message.bot.send_message(
-    chat_id=COMPLETED_ORDERS_CHANNEL_ID,
-    text=(
-        "✅ BUYURTMA BAJARILDI\n\n"
-        f"🆔 Buyurtma: #{deposit_id}\n\n"
-        f"👤 Buyurtmachi: {result['username']}\n\n"
-        "🎮 Xizmat: UZS to'ldirish\n"
-        f"💵 Summa: {int(result['amount']):,} so'm\n\n"
-        f"👨‍💼 Admin: {admin_name}\n\n"
-        f"⏳ Bajarish vaqti: {processing_time}\n\n"
-        "🔥 LEVEL_GROUP"
-        )
-    )
     await callback.answer("✅ Depozit bajarildi.")
 
 
@@ -147,7 +157,7 @@ async def reject_deposit_handler(callback: CallbackQuery):
 
     result = await reject_deposit(
         deposit_id=deposit_id,
-        admin_id=callback.from_user.id
+        admin_id=callback.from_user.id,
     )
 
     if result.get("message") != "Deposit rejected":
@@ -160,10 +170,7 @@ async def reject_deposit_handler(callback: CallbackQuery):
     caption = callback.message.caption or ""
     caption = caption.replace("📌 Status: CLAIMED", "🔴 Status: REJECTED")
 
-    await callback.message.edit_caption(
-        caption=caption,
-        reply_markup=None
-    )
+    await callback.message.edit_caption(caption=caption, reply_markup=None)
 
     await callback.message.bot.send_message(
         chat_id=ADMIN_LOGS_CHANNEL_ID,
@@ -172,7 +179,89 @@ async def reject_deposit_handler(callback: CallbackQuery):
             f"🆔 Buyurtma: #{deposit_id}\n"
             f"👨‍💼 Admin: {admin_name}\n"
             f"⌛️ Ko‘rib chiqish vaqti: {processing_time}"
-        )
+        ),
     )
 
     await callback.answer("❌ Depozit rad etildi.")
+
+
+@router.callback_query(F.data.startswith("approve_withdraw_"))
+async def approve_withdraw_handler(callback: CallbackQuery):
+    withdraw_id = int(callback.data.replace("approve_withdraw_", ""))
+
+    result = await approve_withdraw(
+        withdraw_id=withdraw_id,
+        admin_id=callback.from_user.id,
+    )
+
+    if result.get("message") != "Withdraw tasdiqlandi":
+        await callback.answer("❌ Tasdiqlashda xatolik.", show_alert=True)
+        return
+
+    admin_name = get_admin_name(callback.from_user)
+
+    await callback.message.edit_text(
+        text=(callback.message.text or "").replace(
+            "📌 Status: PENDING",
+            "🟢 Status: APPROVED",
+        ),
+        reply_markup=None,
+    )
+
+    await callback.message.bot.send_message(
+        chat_id=ADMIN_LOGS_CHANNEL_ID,
+        text=(
+            "✅ WITHDRAW TASDIQLANDI\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👨‍💼 Admin: {admin_name}\n\n"
+            "⏳ Muddat: 24 soatgacha"
+        ),
+    )
+
+    await callback.message.bot.send_message(
+        chat_id=COMPLETED_ORDERS_CHANNEL_ID,
+        text=(
+            "✅ PUL YECHISH BAJARILDI\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👨‍💼 Admin: {admin_name}\n\n"
+            "🔥 LEVEL_GROUP"
+        ),
+    )
+
+    await callback.answer("✅ Withdraw tasdiqlandi.")
+
+
+@router.callback_query(F.data.startswith("reject_withdraw_"))
+async def reject_withdraw_handler(callback: CallbackQuery):
+    withdraw_id = int(callback.data.replace("reject_withdraw_", ""))
+
+    result = await reject_withdraw(
+        withdraw_id=withdraw_id,
+        admin_id=callback.from_user.id,
+    )
+
+    if result.get("message") != "Withdraw rad etildi, pul balansga qaytarildi":
+        await callback.answer("❌ Rad etishda xatolik.", show_alert=True)
+        return
+
+    admin_name = get_admin_name(callback.from_user)
+
+    await callback.message.edit_text(
+        text=(callback.message.text or "").replace(
+            "📌 Status: PENDING",
+            "🔴 Status: REJECTED",
+        ),
+        reply_markup=None,
+    )
+
+    await callback.message.bot.send_message(
+        chat_id=ADMIN_LOGS_CHANNEL_ID,
+        text=(
+            "❌ WITHDRAW RAD ETILDI\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👨‍💼 Admin: {admin_name}\n"
+            "💵 Mablag‘ foydalanuvchi balansiga qaytarildi."
+        ),
+    )
+
+    await callback.answer("❌ Withdraw rad etildi.")
