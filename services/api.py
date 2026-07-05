@@ -65,6 +65,9 @@ async def create_deposit(
 async def create_withdraw(
     telegram_id: int,
     amount: int,
+    card_number: str,
+    card_holder: str,
+    bank_name: str,
 ):
     async with aiohttp.ClientSession() as session:
         async with session.post(
@@ -72,12 +75,13 @@ async def create_withdraw(
             json={
                 "telegram_id": telegram_id,
                 "amount": amount,
+                "card_number": card_number,
+                "card_holder": card_holder,
+                "bank_name": bank_name,
             },
         ) as response:
             return await safe_json(response)
-
-
-async def claim_deposit(
+    async def claim_deposit(
     deposit_id: int,
     admin_id: int,
 ):
@@ -89,6 +93,8 @@ async def claim_deposit(
             },
         ) as response:
             return await safe_json(response)
+
+
 async def approve_deposit(
     deposit_id: int,
     admin_id: int,
