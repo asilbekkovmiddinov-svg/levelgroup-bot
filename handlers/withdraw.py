@@ -174,13 +174,9 @@ async def withdraw_amount(message: Message, state: FSMContext):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Tasdiqlash",
-                    callback_data=f"approve_withdraw_{withdraw_id}",
-                ),
-                InlineKeyboardButton(
-                    text="❌ Rad etish",
-                    callback_data=f"reject_withdraw_{withdraw_id}",
-                ),
+                    text="🙋 Qabul qilish",
+                    callback_data=f"claim_withdraw_{withdraw_id}",
+                )
             ]
         ]
     )
@@ -199,7 +195,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
             f"👤 Karta egasi: {full_name}\n\n"
             "⏳ Muddat: 24 soatgacha\n"
             "📌 Status: PENDING\n\n"
-            "👇 Admin tasdiqlashi yoki rad etishi kerak."
+            "👇 Adminlardan biri qabul qilsin."
         ),
         reply_markup=keyboard,
     )
