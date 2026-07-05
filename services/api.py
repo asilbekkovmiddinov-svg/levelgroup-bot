@@ -81,10 +81,7 @@ async def create_withdraw(
             return await safe_json(response)
 
 
-async def claim_deposit(
-    deposit_id: int,
-    admin_id: int,
-):
+async def claim_deposit(deposit_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/deposit/{deposit_id}/claim",
@@ -93,10 +90,7 @@ async def claim_deposit(
             return await safe_json(response)
 
 
-async def claim_withdraw(
-    withdraw_id: int,
-    admin_id: int,
-):
+async def claim_withdraw(withdraw_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/withdraw/{withdraw_id}/claim",
@@ -105,10 +99,7 @@ async def claim_withdraw(
             return await safe_json(response)
 
 
-async def approve_deposit(
-    deposit_id: int,
-    admin_id: int,
-):
+async def approve_deposit(deposit_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/deposit/{deposit_id}/approve",
@@ -133,10 +124,7 @@ async def reject_deposit(
             return await safe_json(response)
 
 
-async def approve_withdraw(
-    withdraw_id: int,
-    admin_id: int,
-):
+async def approve_withdraw(withdraw_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/withdraw/approve/{withdraw_id}",
@@ -145,13 +133,71 @@ async def approve_withdraw(
             return await safe_json(response)
 
 
-async def reject_withdraw(
-    withdraw_id: int,
-    admin_id: int,
-):
+async def reject_withdraw(withdraw_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/withdraw/reject/{withdraw_id}",
             params={"admin_id": admin_id},
+        ) as response:
+            return await safe_json(response)
+async def create_p2p_order(
+    telegram_id: int,
+    efc_amount: float,
+    price_uzs: float,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/create",
+            json={
+                "telegram_id": telegram_id,
+                "efc_amount": efc_amount,
+                "price_uzs": price_uzs,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def get_open_p2p_orders():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/p2p/open"
+        ) as response:
+            if response.status != 200:
+                return []
+
+            return await safe_json(response)
+
+
+async def get_p2p_order(order_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/p2p/{order_id}"
+        ) as response:
+            return await safe_json(response)
+
+
+async def reserve_p2p_order(order_id: int, telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/reserve",
+            json={"telegram_id": telegram_id},
+        ) as response:
+            return await safe_json(response)
+
+
+async def complete_p2p_order(order_id: int, telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/complete",
+            json={"telegram_id": telegram_id},
+        ) as response:
+            return await safe_json(response)
+
+
+async def cancel_p2p_order(order_id: int, telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/cancel",
+            json={"telegram_id": telegram_id},
         ) as response:
             return await safe_json(response)
