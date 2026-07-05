@@ -60,9 +60,7 @@ async def create_deposit(
             },
         ) as response:
             return await safe_json(response)
-
-
-async def create_withdraw(
+    async def create_withdraw(
     telegram_id: int,
     amount: int,
     card_number: str,
@@ -81,7 +79,9 @@ async def create_withdraw(
             },
         ) as response:
             return await safe_json(response)
-    async def claim_deposit(
+
+
+async def claim_deposit(
     deposit_id: int,
     admin_id: int,
 ):
