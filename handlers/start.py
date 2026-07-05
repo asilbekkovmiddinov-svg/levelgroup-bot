@@ -16,12 +16,16 @@ def main_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="🛒 Xarid qilish"),
                 KeyboardButton(text="💰 Hamyon"),
+                KeyboardButton(text="🛒 Coin sotib olish"),
             ],
             [
-                KeyboardButton(text="📈 P2P Bozor"),
-                KeyboardButton(text="💸 Pul yechish"),
+                KeyboardButton(text="🤝 P2P Market"),
+                KeyboardButton(text="🎰 Baraban"),
+            ],
+            [
+                KeyboardButton(text="👤 Profil"),
+                KeyboardButton(text="⚙️ Sozlamalar"),
             ],
         ],
         resize_keyboard=True,
@@ -47,6 +51,6 @@ async def start_command(message: Message):
     await message.answer(
         "👋 Assalomu alaykum!\n\n"
         "LEVEL_GROUP ga xush kelibsiz! 🚀\n\n"
-        "Quyidagi menyudan kerakli bo'limni tanlang.",
+        "Kerakli bo‘limni tanlang.",
         reply_markup=main_keyboard(),
     )
