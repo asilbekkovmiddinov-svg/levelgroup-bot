@@ -10,6 +10,20 @@ from services.api import get_wallet
 router = Router()
 
 
+def format_efc(value):
+    try:
+        return f"{float(value):,.2f} EFC"
+    except Exception:
+        return "0.00 EFC"
+
+
+def format_uzs(value):
+    try:
+        return f"{float(value):,.2f} so'm"
+    except Exception:
+        return "0.00 so'm"
+
+
 @router.message(F.text == "💰 Hamyon")
 async def wallet(message: Message):
     data = await get_wallet(message.from_user.id)
@@ -45,10 +59,13 @@ async def wallet(message: Message):
 
     await message.answer(
         "💰 <b>Sizning hamyoningiz</b>\n\n"
-        f"🪙 EFC: <b>{efc}</b>\n"
-        f"🔒 Band EFC: <b>{locked_efc}</b>\n\n"
-        f"💵 UZS: <b>{uzs}</b> so'm\n"
-        f"🔒 Band UZS: <b>{locked_uzs}</b> so'm\n\n"
+
+        f"🪙 EFC: <b>{format_efc(efc)}</b>\n"
+        f"🔒 Band EFC: <b>{format_efc(locked_efc)}</b>\n\n"
+
+        f"💵 UZS: <b>{format_uzs(uzs)}</b>\n"
+        f"🔒 Band UZS: <b>{format_uzs(locked_uzs)}</b>\n\n"
+
         "👇 Quyidagi amallardan birini tanlang:",
         reply_markup=keyboard,
     )
