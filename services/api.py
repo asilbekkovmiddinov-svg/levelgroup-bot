@@ -300,3 +300,31 @@ async def fill_wheel_coin_order(
             },
         ) as response:
             return await safe_json(response)
+async def approve_wheel_coin_order(
+    order_id: int,
+    admin_id: int,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/wheel/coin-orders/{order_id}/approve",
+            params={
+                "admin_id": admin_id,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def reject_wheel_coin_order(
+    order_id: int,
+    admin_id: int,
+    reason: str = "Admin rad etdi",
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/wheel/coin-orders/{order_id}/reject",
+            params={
+                "admin_id": admin_id,
+                "reason": reason,
+            },
+        ) as response:
+            return await safe_json(response)
