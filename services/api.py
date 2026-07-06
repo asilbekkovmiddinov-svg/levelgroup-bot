@@ -136,6 +136,7 @@ async def create_p2p_order(
     efc_amount: float,
     price_uzs: float,
     min_trade_efc: float,
+    response_minutes: int,
 ):
     async with aiohttp.ClientSession() as session:
         async with session.post(
@@ -146,6 +147,7 @@ async def create_p2p_order(
                 "efc_amount": efc_amount,
                 "price_uzs": price_uzs,
                 "min_trade_efc": min_trade_efc,
+                "response_minutes": response_minutes,
             },
         ) as response:
             return await safe_json(response)
