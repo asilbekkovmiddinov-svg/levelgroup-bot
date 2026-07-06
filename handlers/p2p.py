@@ -36,6 +36,7 @@ class P2PState(StatesGroup):
     update_price = State()
     response_minutes = State()
 
+
 def get_data(result):
     if isinstance(result, dict):
         return result.get("data") or result
@@ -49,36 +50,11 @@ def is_success(result):
 def p2p_menu_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📈 EFC sotish e’lonlari",
-                    callback_data="p2p_orders_SELL",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📉 EFC sotib olish e’lonlari",
-                    callback_data="p2p_orders_BUY",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ EFC sotish e’loni",
-                    callback_data="p2p_create_SELL",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ EFC sotib olish e’loni",
-                    callback_data="p2p_create_BUY",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📋 Mening e’lonlarim",
-                    callback_data="p2p_my_orders",
-                )
-            ],
+            [InlineKeyboardButton(text="📈 EFC sotish e’lonlari", callback_data="p2p_orders_SELL")],
+            [InlineKeyboardButton(text="📉 EFC sotib olish e’lonlari", callback_data="p2p_orders_BUY")],
+            [InlineKeyboardButton(text="➕ EFC sotish e’loni", callback_data="p2p_create_SELL")],
+            [InlineKeyboardButton(text="➕ EFC sotib olish e’loni", callback_data="p2p_create_BUY")],
+            [InlineKeyboardButton(text="📋 Mening e’lonlarim", callback_data="p2p_my_orders")],
         ]
     )
 
@@ -94,9 +70,7 @@ def p2p_response_time_keyboard():
                 InlineKeyboardButton(text="🕒 15 daqiqa", callback_data="p2p_time_15"),
                 InlineKeyboardButton(text="🕕 30 daqiqa", callback_data="p2p_time_30"),
             ],
-            [
-                InlineKeyboardButton(text="🕐 60 daqiqa", callback_data="p2p_time_60"),
-            ],
+            [InlineKeyboardButton(text="🕐 60 daqiqa", callback_data="p2p_time_60")],
         ]
     )
 
@@ -119,6 +93,8 @@ async def p2p_menu_callback(callback: CallbackQuery):
         reply_markup=p2p_menu_keyboard(),
     )
     await callback.answer()
+
+
 @router.callback_query(F.data.startswith("p2p_create_"))
 async def p2p_create_start(callback: CallbackQuery, state: FSMContext):
     order_type = callback.data.replace("p2p_create_", "")
@@ -166,8 +142,6 @@ async def p2p_amount_handler(message: Message, state: FSMContext):
         "💵 1 EFC narxini UZS’da kiriting.\n\n"
         "Masalan: 100"
     )
-
-
 @router.message(P2PState.price_uzs)
 async def p2p_price_handler(message: Message, state: FSMContext):
     try:
@@ -187,7 +161,9 @@ async def p2p_price_handler(message: Message, state: FSMContext):
         "📌 Minimal savdo miqdorini kiriting.\n\n"
         f"Eng kami: {MIN_P2P_EFC} EFC\n"
         "Masalan: 50 yoki 100"
-        )
+    )
+
+
 @router.message(P2PState.min_trade_efc)
 async def p2p_min_trade_handler(message: Message, state: FSMContext):
     try:
@@ -197,9 +173,7 @@ async def p2p_min_trade_handler(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
-    order_type = data["order_type"]
     efc_amount = data["efc_amount"]
-    price_uzs = data["price_uzs"]
 
     if min_trade_efc < MIN_P2P_EFC:
         await message.answer(f"❌ Minimal savdo {MIN_P2P_EFC} EFC dan kam bo‘lmaydi.")
@@ -217,7 +191,6 @@ async def p2p_min_trade_handler(message: Message, state: FSMContext):
         "Xaridor buyurtma olgandan keyin shu vaqt ichida javob berishi kerak:",
         reply_markup=p2p_response_time_keyboard(),
     )
-    return
 
 
 @router.callback_query(F.data.startswith("p2p_time_"))
@@ -307,16 +280,18 @@ async def p2p_open_orders(callback: CallbackQuery):
         )
 
         await callback.message.answer(
-    f"🆔 Order: #{order_id}\n"
-    f"📌 Tur: {order_type}\n"
-    f"🪙 Qolgan EFC: {remaining}\n"
-    f"💵 1 EFC: {price:,.2f} UZS\n"
-    f"🔻 Minimal savdo: {min_trade} EFC\n"
-    f"⏱ Javob vaqti: {response_minutes} daqiqa",
-    reply_markup=keyboard,
+            f"🆔 Order: #{order_id}\n"
+            f"📌 Tur: {order_type}\n"
+            f"🪙 Qolgan EFC: {remaining}\n"
+            f"💵 1 EFC: {price:,.2f} UZS\n"
+            f"🔻 Minimal savdo: {min_trade} EFC\n"
+            f"⏱ Javob vaqti: {response_minutes} daqiqa",
+            reply_markup=keyboard,
         )
 
     await callback.answer()
+
+
 @router.callback_query(F.data.startswith("p2p_trade_"))
 async def p2p_trade_start(callback: CallbackQuery, state: FSMContext):
     order_id = int(callback.data.replace("p2p_trade_", ""))
@@ -330,8 +305,6 @@ async def p2p_trade_start(callback: CallbackQuery, state: FSMContext):
         "Masalan: 50"
     )
     await callback.answer()
-
-
 @router.message(P2PState.trade_amount)
 async def p2p_trade_amount_handler(message: Message, state: FSMContext):
     try:
@@ -366,6 +339,7 @@ async def p2p_trade_amount_handler(message: Message, state: FSMContext):
     trade = get_data(result)
     trade_id = trade.get("id")
     owner_id = trade.get("owner_id")
+    response_minutes = trade.get("response_minutes", 15)
 
     owner_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -389,7 +363,8 @@ async def p2p_trade_amount_handler(message: Message, state: FSMContext):
             f"🆔 Trade: #{trade_id}\n"
             f"🪙 EFC: {trade.get('efc_amount')}\n"
             f"💵 1 EFC: {trade.get('price_uzs')} UZS\n"
-            f"💰 Jami: {trade.get('total_uzs')} UZS\n\n"
+            f"💰 Jami: {trade.get('total_uzs')} UZS\n"
+            f"⏱ Javob vaqti: {response_minutes} daqiqa\n\n"
             "Tasdiqlaysizmi?"
         ),
         reply_markup=owner_keyboard,
@@ -400,6 +375,8 @@ async def p2p_trade_amount_handler(message: Message, state: FSMContext):
         "E’lon egasi tasdiqlashini kuting.",
         reply_markup=p2p_menu_keyboard(),
     )
+
+
 @router.callback_query(F.data.startswith("p2p_owner_approve_"))
 async def p2p_owner_approve(callback: CallbackQuery):
     trade_id = int(callback.data.replace("p2p_owner_approve_", ""))
@@ -439,7 +416,9 @@ async def p2p_owner_approve(callback: CallbackQuery):
         reply_markup=requester_keyboard,
     )
 
-    await callback.message.edit_text("✅ Savdo tasdiqlandi. Ikkinchi tomon yakuniy tasdiqlashi kutilmoqda.")
+    await callback.message.edit_text(
+        "✅ Savdo tasdiqlandi. Ikkinchi tomon yakuniy tasdiqlashi kutilmoqda."
+    )
     await callback.answer("Tasdiqlandi.")
 
 
@@ -519,6 +498,8 @@ async def p2p_cancel_order(callback: CallbackQuery):
 
     await callback.message.edit_text("❌ P2P e’lon bekor qilindi.")
     await callback.answer("Bekor qilindi.")
+
+
 @router.callback_query(F.data == "p2p_my_orders")
 async def p2p_my_orders(callback: CallbackQuery):
     result = await get_my_p2p_orders(callback.from_user.id)
