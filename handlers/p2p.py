@@ -11,20 +11,36 @@ from aiogram.fsm.context import FSMContext
 from services.api import (
     create_p2p_order,
     get_open_p2p_orders,
-    reserve_p2p_order,
-    complete_p2p_order,
+    create_p2p_trade,
+    approve_p2p_trade,
+    reject_p2p_trade,
+    confirm_p2p_trade,
     cancel_p2p_order,
 )
 
 router = Router()
 
-MIN_P2P_EFC = 1
-MIN_P2P_UZS = 1000
+MIN_P2P_EFC = 50
+MAX_P2P_EFC = 10000
+MIN_PRICE_UZS = 1
 
 
 class P2PState(StatesGroup):
+    order_type = State()
     efc_amount = State()
     price_uzs = State()
+    min_trade_efc = State()
+    trade_amount = State()
+
+
+def get_data(result):
+    if isinstance(result, dict):
+        return result.get("data") or result
+    return {}
+
+
+def is_success(result):
+    return isinstance(result, dict) and result.get("success") is True
 
 
 def p2p_menu_keyboard():
@@ -32,14 +48,26 @@ def p2p_menu_keyboard():
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📋 E'lonlar",
-                    callback_data="p2p_open_orders",
+                    text="📈 EFC sotish e’lonlari",
+                    callback_data="p2p_orders_SELL",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="💰 EFC sotish",
-                    callback_data="p2p_sell_start",
+                    text="📉 EFC sotib olish e’lonlari",
+                    callback_data="p2p_orders_BUY",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="➕ EFC sotish e’loni",
+                    callback_data="p2p_create_SELL",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="➕ EFC sotib olish e’loni",
+                    callback_data="p2p_create_BUY",
                 )
             ],
         ]
@@ -50,11 +78,9 @@ def p2p_menu_keyboard():
 async def p2p_menu(message: Message):
     await message.answer(
         "🤝 P2P Market\n\n"
-        "Bu yerda foydalanuvchilar EFC sotishi va sotib olishi mumkin.\n\n"
-        "Komissiya:\n"
-        "• Sotuvchi: 2.5% EFC\n"
-        "• Xaridor: 2.5% UZS\n\n"
-        "Kerakli bo‘limni tanlang:",
+        "Bu yerda EFC sotish va sotib olish e’lonlari mavjud.\n\n"
+        "To‘lov karta orqali emas, ichki UZS/EFC balans orqali bo‘ladi.\n"
+        "Savdo ikki tomon tasdiqlagandan keyin yakunlanadi.",
         reply_markup=p2p_menu_keyboard(),
     )
 
@@ -62,271 +88,378 @@ async def p2p_menu(message: Message):
 @router.callback_query(F.data == "p2p_menu")
 async def p2p_menu_callback(callback: CallbackQuery):
     await callback.message.answer(
-        "🤝 P2P Market\n\n"
-        "Kerakli bo‘limni tanlang:",
+        "🤝 P2P Market\n\nKerakli bo‘limni tanlang:",
         reply_markup=p2p_menu_keyboard(),
     )
     await callback.answer()
+@router.callback_query(F.data.startswith("p2p_create_"))
+async def p2p_create_start(callback: CallbackQuery, state: FSMContext):
+    order_type = callback.data.replace("p2p_create_", "")
 
+    if order_type not in ["BUY", "SELL"]:
+        await callback.answer("Noto‘g‘ri e’lon turi.", show_alert=True)
+        return
 
-@router.callback_query(F.data == "p2p_sell_start")
-async def p2p_sell_start(callback: CallbackQuery, state: FSMContext):
     await state.clear()
+    await state.update_data(order_type=order_type)
     await state.set_state(P2PState.efc_amount)
 
-    await callback.message.answer(
-        "💰 EFC sotish\n\n"
-        "Sotmoqchi bo‘lgan EFC miqdorini kiriting.\n\n"
-        f"Minimal: {MIN_P2P_EFC} EFC\n"
-        "Masalan: 10"
-    )
+    title = "EFC sotish" if order_type == "SELL" else "EFC sotib olish"
 
+    await callback.message.answer(
+        f"➕ {title} e’loni\n\n"
+        "EFC miqdorini kiriting.\n\n"
+        f"Minimal: {MIN_P2P_EFC} EFC\n"
+        f"Maksimal: {MAX_P2P_EFC} EFC\n\n"
+        "Masalan: 500"
+    )
     await callback.answer()
+
+
 @router.message(P2PState.efc_amount)
-async def p2p_efc_amount(message: Message, state: FSMContext):
+async def p2p_amount_handler(message: Message, state: FSMContext):
     try:
         efc_amount = float(message.text.replace(",", "."))
     except Exception:
-        await message.answer("❌ Faqat raqam kiriting. Masalan: 10")
+        await message.answer("❌ Faqat raqam kiriting. Masalan: 500")
         return
 
     if efc_amount < MIN_P2P_EFC:
-        await message.answer(
-            f"❌ Minimal sotish miqdori {MIN_P2P_EFC} EFC."
-        )
+        await message.answer(f"❌ Minimal e’lon {MIN_P2P_EFC} EFC.")
+        return
+
+    if efc_amount > MAX_P2P_EFC:
+        await message.answer(f"❌ Maksimal e’lon {MAX_P2P_EFC} EFC.")
         return
 
     await state.update_data(efc_amount=efc_amount)
     await state.set_state(P2PState.price_uzs)
 
     await message.answer(
-        "💵 EFC uchun UZS narxini kiriting.\n\n"
-        "Masalan:\n"
-        "10000\n\n"
-        "Bu xaridor to‘laydigan asosiy narx bo‘ladi."
+        "💵 1 EFC narxini UZS’da kiriting.\n\n"
+        "Masalan: 100"
     )
 
 
 @router.message(P2PState.price_uzs)
-async def p2p_price_uzs(message: Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer("❌ Faqat raqam kiriting. Masalan: 10000")
+async def p2p_price_handler(message: Message, state: FSMContext):
+    try:
+        price_uzs = float(message.text.replace(",", "."))
+    except Exception:
+        await message.answer("❌ Faqat raqam kiriting. Masalan: 100")
         return
 
-    price_uzs = int(message.text)
+    if price_uzs < MIN_PRICE_UZS:
+        await message.answer("❌ Narx 1 UZS dan kam bo‘lmaydi.")
+        return
 
-    if price_uzs < MIN_P2P_UZS:
-        await message.answer(
-            f"❌ Minimal narx {MIN_P2P_UZS:,} so‘m."
+    await state.update_data(price_uzs=price_uzs)
+    await state.set_state(P2PState.min_trade_efc)
+
+    await message.answer(
+        "📌 Minimal savdo miqdorini kiriting.\n\n"
+        f"Eng kami: {MIN_P2P_EFC} EFC\n"
+        "Masalan: 50 yoki 100"
         )
+@router.message(P2PState.min_trade_efc)
+async def p2p_min_trade_handler(message: Message, state: FSMContext):
+    try:
+        min_trade_efc = float(message.text.replace(",", "."))
+    except Exception:
+        await message.answer("❌ Faqat raqam kiriting. Masalan: 50")
         return
 
     data = await state.get_data()
+    order_type = data["order_type"]
     efc_amount = data["efc_amount"]
+    price_uzs = data["price_uzs"]
+
+    if min_trade_efc < MIN_P2P_EFC:
+        await message.answer(f"❌ Minimal savdo {MIN_P2P_EFC} EFC dan kam bo‘lmaydi.")
+        return
+
+    if min_trade_efc > efc_amount:
+        await message.answer("❌ Minimal savdo e’lon miqdoridan katta bo‘lmaydi.")
+        return
 
     result = await create_p2p_order(
         telegram_id=message.from_user.id,
+        order_type=order_type,
         efc_amount=efc_amount,
         price_uzs=price_uzs,
+        min_trade_efc=min_trade_efc,
     )
-
-    if result.get("message") == "EFC balans yetarli emas":
-        await message.answer(
-            "❌ EFC balansingiz yetarli emas.\n\n"
-            f"🪙 Kerakli EFC: {efc_amount}"
-        )
-        await state.clear()
-        return
-
-    if result.get("message") != "P2P order yaratildi":
-        await message.answer(
-            "❌ P2P e'lon yaratishda xatolik.\n\n"
-            f"Server javobi: {result.get('message', 'Nomaʼlum xatolik')}"
-        )
-        await state.clear()
-        return
 
     await state.clear()
 
+    if not is_success(result):
+        await message.answer(
+            "❌ P2P e’lon yaratilmadi.\n\n"
+            f"Sabab: {result.get('message', 'Noma’lum xatolik')}",
+            reply_markup=p2p_menu_keyboard(),
+        )
+        return
+
+    order = get_data(result)
+    title = "SOTISH" if order_type == "SELL" else "SOTIB OLISH"
+    total_uzs = efc_amount * price_uzs
+
     await message.answer(
-        "✅ P2P e'lon yaratildi!\n\n"
-        f"🆔 Order: #{result.get('id')}\n"
-        f"🪙 EFC: {result.get('efc_amount')}\n"
-        f"💵 Narx: {int(result.get('price_uzs', 0)):,} so‘m\n"
-        f"🔥 EFC komissiya: {result.get('seller_fee_efc')} EFC\n"
-        f"💰 Siz olasiz: {int(result.get('seller_receive_uzs', 0)):,} so‘m\n\n"
-        "E'loningiz P2P Marketda ko‘rinadi.",
+        f"✅ P2P {title} e’loni yaratildi!\n\n"
+        f"🆔 Order: #{order.get('id')}\n"
+        f"🪙 EFC: {efc_amount}\n"
+        f"💵 1 EFC narxi: {price_uzs:,.2f} UZS\n"
+        f"💰 Umumiy qiymat: {total_uzs:,.2f} UZS\n"
+        f"📌 Minimal savdo: {min_trade_efc} EFC\n\n"
+        "E’lon P2P Marketda ko‘rinadi.",
         reply_markup=p2p_menu_keyboard(),
     )
-@router.callback_query(F.data == "p2p_open_orders")
+
+
+@router.callback_query(F.data.startswith("p2p_orders_"))
 async def p2p_open_orders(callback: CallbackQuery):
-    orders = await get_open_p2p_orders()
+    order_type = callback.data.replace("p2p_orders_", "")
+    result = await get_open_p2p_orders(order_type=order_type)
+
+    orders = result.get("data", []) if isinstance(result, dict) else result
 
     if not orders:
         await callback.message.answer(
-            "📋 Hozircha ochiq P2P e'lonlar yo‘q.",
+            "📋 Hozircha ochiq e’lonlar yo‘q.",
             reply_markup=p2p_menu_keyboard(),
         )
         await callback.answer()
         return
 
+    title = "EFC sotish e’lonlari" if order_type == "SELL" else "EFC sotib olish e’lonlari"
+    await callback.message.answer(f"📋 {title}")
+
     for order in orders[:10]:
         order_id = order.get("id")
-        efc_amount = order.get("efc_amount", 0)
-        price_uzs = int(order.get("price_uzs", 0))
-        buyer_fee = int(order.get("buyer_fee_uzs", 0))
-        total_pay = int(order.get("total_buyer_pay_uzs", 0))
+        remaining = float(order.get("remaining_efc", 0))
+        price = float(order.get("price_uzs", 0))
+        min_trade = float(order.get("min_trade_efc", 0))
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="🛒 Sotib olish",
-                        callback_data=f"p2p_buy_{order_id}",
+                        text="🤝 Savdo qilish",
+                        callback_data=f"p2p_trade_{order_id}",
                     )
                 ]
             ]
         )
 
         await callback.message.answer(
-            "📋 P2P E'LON\n\n"
             f"🆔 Order: #{order_id}\n"
-            f"🪙 EFC: {efc_amount}\n"
-            f"💵 Narx: {price_uzs:,} so‘m\n"
-            f"➕ Xaridor komissiyasi: {buyer_fee:,} so‘m\n"
-            f"💳 Jami to‘lov: {total_pay:,} so‘m\n\n"
-            "👇 Sotib olish uchun tugmani bosing.",
+            f"📌 Tur: {order_type}\n"
+            f"🪙 Qolgan EFC: {remaining}\n"
+            f"💵 1 EFC: {price:,.2f} UZS\n"
+            f"🔻 Minimal savdo: {min_trade} EFC",
             reply_markup=keyboard,
         )
 
     await callback.answer()
+@router.callback_query(F.data.startswith("p2p_trade_"))
+async def p2p_trade_start(callback: CallbackQuery, state: FSMContext):
+    order_id = int(callback.data.replace("p2p_trade_", ""))
+
+    await state.clear()
+    await state.update_data(order_id=order_id)
+    await state.set_state(P2PState.trade_amount)
+
+    await callback.message.answer(
+        "🤝 Savdo miqdorini kiriting.\n\n"
+        "Masalan: 50"
+    )
+    await callback.answer()
 
 
-@router.callback_query(F.data.startswith("p2p_buy_"))
-async def p2p_buy(callback: CallbackQuery):
-    order_id = int(callback.data.replace("p2p_buy_", ""))
+@router.message(P2PState.trade_amount)
+async def p2p_trade_amount_handler(message: Message, state: FSMContext):
+    try:
+        efc_amount = float(message.text.replace(",", "."))
+    except Exception:
+        await message.answer("❌ Faqat raqam kiriting. Masalan: 50")
+        return
 
-    result = await reserve_p2p_order(
+    if efc_amount < MIN_P2P_EFC:
+        await message.answer(f"❌ Minimal savdo {MIN_P2P_EFC} EFC.")
+        return
+
+    data = await state.get_data()
+    order_id = data["order_id"]
+
+    result = await create_p2p_trade(
         order_id=order_id,
-        telegram_id=callback.from_user.id,
+        telegram_id=message.from_user.id,
+        efc_amount=efc_amount,
     )
 
-    if result.get("message") == "O‘zingizning orderingizni sotib olmaysiz":
-        await callback.answer(
-            "❌ O‘zingizning e'loningizni sotib olmaysiz.",
-            show_alert=True,
+    await state.clear()
+
+    if not is_success(result):
+        await message.answer(
+            "❌ Savdo so‘rovi yuborilmadi.\n\n"
+            f"Sabab: {result.get('message', 'Noma’lum xatolik')}",
+            reply_markup=p2p_menu_keyboard(),
         )
         return
 
-    if result.get("message") == "Order ochiq emas":
-        await callback.answer(
-            "❌ Bu e'lon allaqachon band qilingan yoki yopilgan.",
-            show_alert=True,
-        )
-        return
+    trade = get_data(result)
+    trade_id = trade.get("id")
+    owner_id = trade.get("owner_id")
 
-    if result.get("message") != "P2P order band qilindi":
-        await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
-            show_alert=True,
-        )
-        return
-
-    order_id = result.get("id")
-    efc_amount = result.get("efc_amount")
-    total_pay = int(result.get("total_buyer_pay_uzs", 0))
-    keyboard = InlineKeyboardMarkup(
+    owner_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Sotib olishni yakunlash",
-                    callback_data=f"p2p_complete_{order_id}",
-                )
-            ],
-            [
+                    text="✅ Tasdiqlash",
+                    callback_data=f"p2p_owner_approve_{trade_id}",
+                ),
                 InlineKeyboardButton(
-                    text="❌ Bekor qilish",
-                    callback_data=f"p2p_cancel_{order_id}",
-                )
-            ],
+                    text="❌ Rad etish",
+                    callback_data=f"p2p_owner_reject_{trade_id}",
+                ),
+            ]
         ]
     )
 
-    await callback.message.answer(
-        "✅ P2P e'lon band qilindi!\n\n"
-        f"🆔 Order: #{order_id}\n"
-        f"🪙 EFC: {efc_amount}\n"
-        f"💳 Jami to‘lov: {total_pay:,} so‘m\n\n"
-        "Davom etish uchun sotib olishni yakunlang.",
-        reply_markup=keyboard,
+    await message.bot.send_message(
+        chat_id=owner_id,
+        text=(
+            "🤝 Sizning P2P e’loningizga savdo so‘rovi keldi.\n\n"
+            f"🆔 Trade: #{trade_id}\n"
+            f"🪙 EFC: {trade.get('efc_amount')}\n"
+            f"💵 1 EFC: {trade.get('price_uzs')} UZS\n"
+            f"💰 Jami: {trade.get('total_uzs')} UZS\n\n"
+            "Tasdiqlaysizmi?"
+        ),
+        reply_markup=owner_keyboard,
     )
 
-    await callback.answer("✅ Order band qilindi.")
+    await message.answer(
+        "✅ Savdo so‘rovi yuborildi.\n\n"
+        "E’lon egasi tasdiqlashini kuting.",
+        reply_markup=p2p_menu_keyboard(),
+    )
+@router.callback_query(F.data.startswith("p2p_owner_approve_"))
+async def p2p_owner_approve(callback: CallbackQuery):
+    trade_id = int(callback.data.replace("p2p_owner_approve_", ""))
 
-
-@router.callback_query(F.data.startswith("p2p_complete_"))
-async def p2p_complete(callback: CallbackQuery):
-    order_id = int(callback.data.replace("p2p_complete_", ""))
-
-    result = await complete_p2p_order(
-        order_id=order_id,
+    result = await approve_p2p_trade(
+        trade_id=trade_id,
         telegram_id=callback.from_user.id,
     )
 
-    if result.get("message") == "UZS balans yetarli emas":
-        await callback.answer(
-            "❌ UZS balansingiz yetarli emas.",
-            show_alert=True,
-        )
+    if not is_success(result):
+        await callback.answer(result.get("message", "Xatolik"), show_alert=True)
         return
 
-    if result.get("message") != "P2P order yakunlandi":
-        await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
-            show_alert=True,
-        )
+    trade = get_data(result)
+    requester_id = trade.get("requester_id")
+
+    requester_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Yakuniy tasdiqlash",
+                    callback_data=f"p2p_requester_confirm_{trade_id}",
+                )
+            ]
+        ]
+    )
+
+    await callback.bot.send_message(
+        chat_id=requester_id,
+        text=(
+            "✅ E’lon egasi savdoni tasdiqladi.\n\n"
+            f"🆔 Trade: #{trade_id}\n"
+            f"🪙 EFC: {trade.get('efc_amount')}\n"
+            f"💰 Jami: {trade.get('total_uzs')} UZS\n\n"
+            "Savdoni yakunlash uchun tasdiqlang."
+        ),
+        reply_markup=requester_keyboard,
+    )
+
+    await callback.message.edit_text("✅ Savdo tasdiqlandi. Ikkinchi tomon yakuniy tasdiqlashi kutilmoqda.")
+    await callback.answer("Tasdiqlandi.")
+
+
+@router.callback_query(F.data.startswith("p2p_owner_reject_"))
+async def p2p_owner_reject(callback: CallbackQuery):
+    trade_id = int(callback.data.replace("p2p_owner_reject_", ""))
+
+    result = await reject_p2p_trade(
+        trade_id=trade_id,
+        telegram_id=callback.from_user.id,
+    )
+
+    if not is_success(result):
+        await callback.answer(result.get("message", "Xatolik"), show_alert=True)
         return
+
+    trade = get_data(result)
+    requester_id = trade.get("requester_id")
+
+    await callback.bot.send_message(
+        chat_id=requester_id,
+        text=f"❌ P2P savdo #{trade_id} e’lon egasi tomonidan rad etildi.",
+    )
+
+    await callback.message.edit_text("❌ Savdo rad etildi.")
+    await callback.answer("Rad etildi.")
+
+
+@router.callback_query(F.data.startswith("p2p_requester_confirm_"))
+async def p2p_requester_confirm(callback: CallbackQuery):
+    trade_id = int(callback.data.replace("p2p_requester_confirm_", ""))
+
+    result = await confirm_p2p_trade(
+        trade_id=trade_id,
+        telegram_id=callback.from_user.id,
+    )
+
+    if not is_success(result):
+        await callback.answer(result.get("message", "Xatolik"), show_alert=True)
+        return
+
+    trade = get_data(result)
+
+    await callback.bot.send_message(
+        chat_id=trade.get("owner_id"),
+        text=(
+            "✅ P2P savdo yakunlandi!\n\n"
+            f"🆔 Trade: #{trade_id}\n"
+            f"🪙 EFC: {trade.get('efc_amount')}\n"
+            f"💰 UZS: {trade.get('total_uzs')}"
+        ),
+    )
 
     await callback.message.edit_text(
         "✅ P2P savdo yakunlandi!\n\n"
-        f"🆔 Order: #{result.get('id')}\n"
-        f"🪙 EFC: {result.get('efc_amount')}\n"
-        f"💵 Narx: {int(result.get('price_uzs', 0)):,} so‘m\n\n"
-        "EFC xaridor balansiga o‘tkazildi.\n"
-        "UZS sotuvchi balansiga o‘tkazildi.\n\n"
-        "🔥 LEVEL_GROUP"
+        f"🆔 Trade: #{trade_id}\n"
+        f"🪙 EFC: {trade.get('efc_amount')}\n"
+        f"💰 UZS: {trade.get('total_uzs')}\n\n"
+        "Balanslar avtomatik yangilandi."
     )
 
-    await callback.answer("✅ Savdo yakunlandi.")
+    await callback.answer("Savdo yakunlandi.")
 
 
-@router.callback_query(F.data.startswith("p2p_cancel_"))
-async def p2p_cancel(callback: CallbackQuery):
-    order_id = int(callback.data.replace("p2p_cancel_", ""))
+@router.callback_query(F.data.startswith("p2p_cancel_order_"))
+async def p2p_cancel_order(callback: CallbackQuery):
+    order_id = int(callback.data.replace("p2p_cancel_order_", ""))
 
     result = await cancel_p2p_order(
         order_id=order_id,
         telegram_id=callback.from_user.id,
     )
 
-    if result.get("message") == "Faqat sotuvchi bekor qila oladi":
-        await callback.answer(
-            "❌ Faqat sotuvchi e'lonni bekor qila oladi.",
-            show_alert=True,
-        )
+    if not is_success(result):
+        await callback.answer(result.get("message", "Xatolik"), show_alert=True)
         return
 
-    if result.get("message") != "P2P order bekor qilindi":
-        await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
-            show_alert=True,
-        )
-        return
-
-    await callback.message.edit_text(
-        "❌ P2P order bekor qilindi.\n\n"
-        f"🆔 Order: #{result.get('id')}\n"
-        "Bloklangan EFC sotuvchi balansiga qaytarildi."
-    )
-
-    await callback.answer("❌ Order bekor qilindi.")
+    await callback.message.edit_text("❌ P2P e’lon bekor qilindi.")
+    await callback.answer("Bekor qilindi.")
