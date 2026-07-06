@@ -16,6 +16,8 @@ from services.api import (
     reject_p2p_trade,
     confirm_p2p_trade,
     cancel_p2p_order,
+    get_my_p2p_orders,
+    update_p2p_order_price,
 )
 
 router = Router()
@@ -31,7 +33,7 @@ class P2PState(StatesGroup):
     price_uzs = State()
     min_trade_efc = State()
     trade_amount = State()
-
+    update_price = State()
 
 def get_data(result):
     if isinstance(result, dict):
