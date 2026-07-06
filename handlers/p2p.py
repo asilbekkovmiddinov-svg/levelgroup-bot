@@ -72,6 +72,12 @@ def p2p_menu_keyboard():
                     callback_data="p2p_create_BUY",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="📋 Mening e’lonlarim",
+                    callback_data="p2p_my_orders",
+                )
+            ],
         ]
     )
 
@@ -465,3 +471,83 @@ async def p2p_cancel_order(callback: CallbackQuery):
 
     await callback.message.edit_text("❌ P2P e’lon bekor qilindi.")
     await callback.answer("Bekor qilindi.")
+@router.callback_query(F.data == "p2p_my_orders")
+async def p2p_my_orders(callback: CallbackQuery):
+    result = await get_my_p2p_orders(callback.from_user.id)
+    orders = result.get("data", []) if isinstance(result, dict) else result
+
+    if not orders:
+        await callback.message.answer("📋 Sizda P2P e’lonlar yo‘q.")
+        await callback.answer()
+        return
+
+    for order in orders[:10]:
+        order_id = order.get("id")
+        status = order.get("status")
+        price = float(order.get("price_uzs", 0))
+        remaining = float(order.get("remaining_efc", 0))
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="💵 Narxni o‘zgartirish",
+                        callback_data=f"p2p_update_price_{order_id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="❌ E’lonni bekor qilish",
+                        callback_data=f"p2p_cancel_order_{order_id}",
+                    )
+                ],
+            ]
+        )
+
+        await callback.message.answer(
+            f"📋 Mening e’lonim #{order_id}\n\n"
+            f"📌 Status: {status}\n"
+            f"🪙 Qolgan EFC: {remaining}\n"
+            f"💵 1 EFC narxi: {price:,.2f} UZS",
+            reply_markup=keyboard,
+        )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("p2p_update_price_"))
+async def p2p_update_price_start(callback: CallbackQuery, state: FSMContext):
+    order_id = int(callback.data.replace("p2p_update_price_", ""))
+
+    await state.clear()
+    await state.update_data(update_order_id=order_id)
+    await state.set_state(P2PState.update_price)
+
+    await callback.message.answer("💵 Yangi 1 EFC narxini kiriting. Masalan: 120")
+    await callback.answer()
+
+
+@router.message(P2PState.update_price)
+async def p2p_update_price_finish(message: Message, state: FSMContext):
+    try:
+        price_uzs = float(message.text.replace(",", "."))
+    except Exception:
+        await message.answer("❌ Faqat raqam kiriting. Masalan: 120")
+        return
+
+    data = await state.get_data()
+    order_id = data["update_order_id"]
+
+    result = await update_p2p_order_price(
+        order_id=order_id,
+        telegram_id=message.from_user.id,
+        price_uzs=price_uzs,
+    )
+
+    await state.clear()
+
+    if not is_success(result):
+        await message.answer(f"❌ {result.get('message', 'Xatolik')}")
+        return
+
+    await message.answer("✅ P2P e’lon narxi yangilandi.")
