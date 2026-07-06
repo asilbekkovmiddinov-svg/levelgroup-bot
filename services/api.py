@@ -240,3 +240,19 @@ async def get_my_p2p_trades(telegram_id: int):
             if response.status != 200:
                 return []
             return await safe_json(response)
+
+
+async def update_p2p_order_price(
+    order_id: int,
+    telegram_id: int,
+    price_uzs: float,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/update-price",
+            json={
+                "telegram_id": telegram_id,
+                "price_uzs": price_uzs,
+            },
+        ) as response:
+            return await safe_json(response)
