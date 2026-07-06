@@ -1,15 +1,7 @@
 from aiogram import Router, F
-from aiogram.types import (
-    CallbackQuery,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
+from aiogram.types import CallbackQuery
 
-from config import (
-    ADMIN_CHAT_ID,
-    COMPLETED_ORDERS_CHANNEL_ID,
-)
-
+from config import COMPLETED_ORDERS_CHANNEL_ID
 from services.api import (
     approve_wheel_coin_order,
     reject_wheel_coin_order,
@@ -18,21 +10,10 @@ from services.api import (
 router = Router()
 
 
-def wheel_order_keyboard(order_id: int):
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Bajarildi",
-                    callback_data=f"wheel_order_done_{order_id}",
-                ),
-                InlineKeyboardButton(
-                    text="❌ Rad etish",
-                    callback_data=f"wheel_order_reject_{order_id}",
-                ),
-            ]
-        ]
-    )
+def get_admin_name(user):
+    if user.username:
+        return f"@{user.username}"
+    return user.full_name or str(user.id)
 
 
 def format_duration(seconds: int):
@@ -49,10 +30,6 @@ def format_duration(seconds: int):
     minutes = minutes % 60
 
     return f"{hours} soat {minutes} daqiqa"
-def get_admin_name(user):
-    if user.username:
-        return f"@{user.username}"
-    return user.full_name or str(user.id)
 
 
 def build_completed_text(data: dict, admin_name: str):
@@ -101,6 +78,8 @@ async def safe_send(bot, chat_id, text):
         return True
     except Exception:
         return False
+
+
 @router.callback_query(F.data.startswith("wheel_order_done_"))
 async def approve_wheel(callback: CallbackQuery):
     order_id = int(callback.data.replace("wheel_order_done_", ""))
@@ -118,19 +97,19 @@ async def approve_wheel(callback: CallbackQuery):
         return
 
     data = result["data"]
-
     admin_name = get_admin_name(callback.from_user)
 
     completed_text = build_completed_text(
-        data,
-        admin_name,
+        data=data,
+        admin_name=admin_name,
     )
 
-    await safe_send(
-        callback.bot,
-        COMPLETED_ORDERS_CHANNEL_ID,
-        completed_text,
-    )
+    if COMPLETED_ORDERS_CHANNEL_ID:
+        await safe_send(
+            callback.bot,
+            COMPLETED_ORDERS_CHANNEL_ID,
+            completed_text,
+        )
 
     try:
         await callback.bot.send_message(
@@ -144,7 +123,10 @@ async def approve_wheel(callback: CallbackQuery):
     except Exception:
         pass
 
-    await callback.message.edit_reply_markup()
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
 
     await callback.answer("✅ Buyurtma bajarildi.")
 
@@ -172,12 +154,16 @@ async def reject_wheel(callback: CallbackQuery):
             chat_id=data["telegram_id"],
             text=(
                 "❌ Wheel Coin buyurtmangiz admin tomonidan rad etildi.\n\n"
-                "Qo'shimcha ma'lumot uchun admin bilan bog'laning."
+                "Qo‘shimcha ma’lumot uchun admin bilan bog‘laning.\n\n"
+                "🔥 LEVEL_GROUP"
             ),
         )
     except Exception:
         pass
 
-    await callback.message.edit_reply_markup()
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
 
     await callback.answer("❌ Buyurtma rad etildi.")
