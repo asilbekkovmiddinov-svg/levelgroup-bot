@@ -44,34 +44,34 @@ def format_number(value):
 
 
 def wheel_menu_keyboard(status=None):
-    buttons = [
-        [
-            InlineKeyboardButton(
-                text="🎁 Bepul aylantirish",
-                callback_data="wheel_spin_FREE",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="📺 Reklama orqali aylantirish",
-                callback_data="wheel_spin_AD",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="🍀 Bonus spin",
-                callback_data="wheel_spin_BONUS",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="🔄 Yangilash",
-                callback_data="wheel_menu",
-            )
-        ],
-    ]
-
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🎁 Bepul aylantirish",
+                    callback_data="wheel_spin_FREE",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📺 Reklama orqali aylantirish",
+                    callback_data="wheel_spin_AD",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🍀 Bonus spin",
+                    callback_data="wheel_spin_BONUS",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔄 Yangilash",
+                    callback_data="wheel_menu",
+                )
+            ],
+        ]
+    )
 
 
 def device_keyboard():
@@ -89,9 +89,25 @@ def device_keyboard():
             ]
         ]
     )
-
-
-from datetime import datetime
+def region_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🇯🇵 Yaponiya", callback_data="wheel_region_Yaponiya")],
+            [InlineKeyboardButton(text="🇦🇪 OAE", callback_data="wheel_region_OAE")],
+            [InlineKeyboardButton(text="🇪🇬 Misr", callback_data="wheel_region_Misr")],
+            [InlineKeyboardButton(text="🇨🇦 Kanada", callback_data="wheel_region_Kanada")],
+            [InlineKeyboardButton(text="🇲🇽 Meksika", callback_data="wheel_region_Meksika")],
+            [InlineKeyboardButton(text="🇺🇸 AQSH", callback_data="wheel_region_AQSH")],
+            [InlineKeyboardButton(text="🇸🇦 Saudiya Arabistoni", callback_data="wheel_region_Saudiya")],
+            [InlineKeyboardButton(text="🇦🇺 Avstraliya", callback_data="wheel_region_Avstraliya")],
+            [InlineKeyboardButton(text="🇸🇪 Shvetsiya", callback_data="wheel_region_Shvetsiya")],
+            [InlineKeyboardButton(text="🇨🇭 Shveytsariya", callback_data="wheel_region_Shveytsariya")],
+            [InlineKeyboardButton(text="🇬🇧 Buyuk Britaniya", callback_data="wheel_region_Buyuk_Britaniya")],
+            [InlineKeyboardButton(text="🇮🇩 Indoneziya", callback_data="wheel_region_Indoneziya")],
+            [InlineKeyboardButton(text="🇲🇾 Malayziya", callback_data="wheel_region_Malayziya")],
+            [InlineKeyboardButton(text="🌍 Boshqa region", callback_data="wheel_region_OTHER")],
+        ]
+    )
 
 
 def get_status_text(status):
@@ -99,18 +115,15 @@ def get_status_text(status):
 
     ad_count = status.get("ad_spin_count", 0)
     max_ad = status.get("max_ad_spins", 10)
-
     bonus_count = status.get("bonus_spin_count", 0)
 
     timer_text = "✅ Hozir aylantirish mumkin"
-
     next_spin = status.get("next_ad_spin_at")
 
     if next_spin:
         try:
             next_time = datetime.fromisoformat(next_spin)
             remain = next_time - datetime.utcnow()
-
             seconds = int(remain.total_seconds())
 
             if seconds > 0:
@@ -122,25 +135,20 @@ def get_status_text(status):
                     timer_text = f"⏳ {hours} soat {minutes} daqiqa"
                 else:
                     timer_text = f"⏳ {minutes} daqiqa {secs} soniya"
-
         except Exception:
             pass
 
     return (
-        "🎰 <b>LEVEL_GROUP Wheel</b>\n\n"
-
+        "🎰 LEVEL_GROUP Wheel\n\n"
         f"🎁 Bepul spin: {free_text}\n"
         f"📺 Reklama: {ad_count}/{max_ad}\n"
         f"🍀 Bonus spin: {bonus_count}\n"
         f"⏰ Keyingi reklama: {timer_text}\n\n"
-
         "🏆 Katta yutuqlar\n"
         "⭐ 250 EFC\n"
         "🪙 130 Coin\n"
         "👑 2000 Coin Jackpot"
-    )
-
-
+            )
 @router.message(F.text == "🎰 Wheel")
 async def wheel_menu(message: Message):
     status = await get_wheel_status(message.from_user.id)
@@ -168,6 +176,31 @@ async def wheel_menu_callback(callback: CallbackQuery):
         reply_markup=wheel_menu_keyboard(status),
     )
     await callback.answer()
+
+
+@router.message(F.text == "🎰 Baraban")
+async def wheel_menu_baraban(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "🎡 Baraban")
+async def wheel_menu_baraban_alt(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "Baraban")
+async def wheel_menu_baraban_text(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "🎡 Wheel")
+async def wheel_menu_alt(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "Wheel")
+async def wheel_menu_text(message: Message):
+    await wheel_menu(message)
 
 
 @router.callback_query(F.data.startswith("wheel_spin_"))
@@ -216,9 +249,7 @@ async def wheel_spin_handler(callback: CallbackQuery, state: FSMContext):
         await state.set_state(WheelCoinOrderState.konami_login)
 
         await callback.message.answer(text)
-        await callback.message.answer(
-            "🔐 My Konami loginni kiriting:"
-        )
+        await callback.message.answer("🔐 My Konami loginni kiriting:")
         await callback.answer()
         return
 
@@ -256,13 +287,32 @@ async def wheel_coin_password(message: Message, state: FSMContext):
     await state.set_state(WheelCoinOrderState.region)
 
     await message.answer(
-        "🌍 Regionni kiriting.\n\n"
-        "Masalan: Turkey, Uzbekistan, Singapore"
+        "🌍 Regionni tanlang:",
+        reply_markup=region_keyboard(),
     )
 
 
+@router.callback_query(F.data.startswith("wheel_region_"))
+async def wheel_coin_region_select(callback: CallbackQuery, state: FSMContext):
+    region = callback.data.replace("wheel_region_", "").replace("_", " ")
+
+    if region == "OTHER":
+        await callback.message.answer("🌍 Region nomini yozing:")
+        await callback.answer()
+        return
+
+    await state.update_data(region=region)
+    await state.set_state(WheelCoinOrderState.device)
+
+    await callback.message.answer(
+        "📱 Qurilma turini tanlang:",
+        reply_markup=device_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.message(WheelCoinOrderState.region)
-async def wheel_coin_region(message: Message, state: FSMContext):
+async def wheel_coin_region_manual(message: Message, state: FSMContext):
     region = message.text.strip()
 
     if len(region) < 2:
@@ -310,7 +360,9 @@ async def wheel_coin_device(callback: CallbackQuery, state: FSMContext):
     username = callback.from_user.username or "username yo‘q"
     first_name = callback.from_user.first_name or "Ism yo‘q"
     admin_text = (
-        "🏆 WHEEL COIN BUYURTMA\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🏆 WHEEL COIN BUYURTMA\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
         f"👤 Foydalanuvchi: {first_name}\n"
         f"🔗 Username: @{username}\n"
         f"🆔 Telegram ID: {callback.from_user.id}\n"
@@ -323,29 +375,29 @@ async def wheel_coin_device(callback: CallbackQuery, state: FSMContext):
     )
 
     if ADMIN_CHAT_ID:
-    try:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✅ Bajarildi",
-                        callback_data=f"wheel_order_done_{result['data']['id']}",
-                    ),
-                    InlineKeyboardButton(
-                        text="❌ Rad etish",
-                        callback_data=f"wheel_order_reject_{result['data']['id']}",
-                    ),
+        try:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="✅ Bajarildi",
+                            callback_data=f"wheel_order_done_{result['data']['id']}",
+                        ),
+                        InlineKeyboardButton(
+                            text="❌ Rad etish",
+                            callback_data=f"wheel_order_reject_{result['data']['id']}",
+                        ),
+                    ]
                 ]
-            ]
-        )
+            )
 
-        await callback.bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=admin_text,
-            reply_markup=keyboard,
-        )
-    except Exception:
-        pass
+            await callback.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=admin_text,
+                reply_markup=keyboard,
+            )
+        except Exception:
+            pass
 
     await callback.message.answer(
         "✅ Coin buyurtmangiz adminga yuborildi!\n\n"
@@ -370,14 +422,6 @@ async def wheel_help(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.message(F.text == "🎡 Wheel")
-async def wheel_menu_alt(message: Message):
-    await wheel_menu(message)
-
-
-@router.message(F.text == "Wheel")
-async def wheel_menu_text(message: Message):
-    await wheel_menu(message)
 @router.message(F.text == "🎁 Bepul aylantirish")
 async def wheel_free_text(message: Message):
     result = await spin_wheel(
@@ -430,16 +474,3 @@ async def wheel_bonus_text(message: Message):
         f"{result.get('message')}",
         reply_markup=wheel_menu_keyboard(result),
     )
-@router.message(F.text == "🎰 Baraban")
-async def wheel_menu_baraban(message: Message):
-    await wheel_menu(message)
-
-
-@router.message(F.text == "🎡 Baraban")
-async def wheel_menu_baraban_alt(message: Message):
-    await wheel_menu(message)
-
-
-@router.message(F.text == "Baraban")
-async def wheel_menu_baraban_text(message: Message):
-    await wheel_menu(message)
