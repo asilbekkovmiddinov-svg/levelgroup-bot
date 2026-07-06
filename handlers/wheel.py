@@ -380,3 +380,16 @@ async def wheel_bonus_text(message: Message):
         f"{result.get('message')}",
         reply_markup=wheel_menu_keyboard(result),
     )
+@router.message(F.text == "🎰 Baraban")
+async def wheel_menu_baraban(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "🎡 Baraban")
+async def wheel_menu_baraban_alt(message: Message):
+    await wheel_menu(message)
+
+
+@router.message(F.text == "Baraban")
+async def wheel_menu_baraban_text(message: Message):
+    await wheel_menu(message)
