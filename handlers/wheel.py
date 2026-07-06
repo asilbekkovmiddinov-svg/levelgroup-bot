@@ -92,23 +92,23 @@ def device_keyboard():
 def region_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="🇺🇿 Uzbekistan", callback_data="wheel_region_Uzbekistan")],
             [InlineKeyboardButton(text="🇯🇵 Yaponiya", callback_data="wheel_region_Yaponiya")],
             [InlineKeyboardButton(text="🇦🇪 OAE", callback_data="wheel_region_OAE")],
             [InlineKeyboardButton(text="🇪🇬 Misr", callback_data="wheel_region_Misr")],
             [InlineKeyboardButton(text="🇨🇦 Kanada", callback_data="wheel_region_Kanada")],
             [InlineKeyboardButton(text="🇲🇽 Meksika", callback_data="wheel_region_Meksika")],
             [InlineKeyboardButton(text="🇺🇸 AQSH", callback_data="wheel_region_AQSH")],
-            [InlineKeyboardButton(text="🇸🇦 Saudiya Arabistoni", callback_data="wheel_region_Saudiya")],
+            [InlineKeyboardButton(text="🇸🇦 Saudiya Arabistoni", callback_data="wheel_region_Saudiya_Arabistoni")],
             [InlineKeyboardButton(text="🇦🇺 Avstraliya", callback_data="wheel_region_Avstraliya")],
             [InlineKeyboardButton(text="🇸🇪 Shvetsiya", callback_data="wheel_region_Shvetsiya")],
             [InlineKeyboardButton(text="🇨🇭 Shveytsariya", callback_data="wheel_region_Shveytsariya")],
             [InlineKeyboardButton(text="🇬🇧 Buyuk Britaniya", callback_data="wheel_region_Buyuk_Britaniya")],
             [InlineKeyboardButton(text="🇮🇩 Indoneziya", callback_data="wheel_region_Indoneziya")],
             [InlineKeyboardButton(text="🇲🇾 Malayziya", callback_data="wheel_region_Malayziya")],
-            [InlineKeyboardButton(text="🌍 Boshqa region", callback_data="wheel_region_OTHER")],
+            [InlineKeyboardButton(text="✍️ Boshqa region", callback_data="wheel_region_OTHER")],
         ]
     )
-
 
 def get_status_text(status):
     free_text = "✅ Ishlatilgan" if status.get("free_spin_used") else "🎁 Tayyor"
