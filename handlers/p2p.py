@@ -293,6 +293,7 @@ async def p2p_open_orders(callback: CallbackQuery):
         remaining = float(order.get("remaining_efc", 0))
         price = float(order.get("price_uzs", 0))
         min_trade = float(order.get("min_trade_efc", 0))
+        response_minutes = int(order.get("response_minutes", 15))
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -306,12 +307,13 @@ async def p2p_open_orders(callback: CallbackQuery):
         )
 
         await callback.message.answer(
-            f"🆔 Order: #{order_id}\n"
-            f"📌 Tur: {order_type}\n"
-            f"🪙 Qolgan EFC: {remaining}\n"
-            f"💵 1 EFC: {price:,.2f} UZS\n"
-            f"🔻 Minimal savdo: {min_trade} EFC",
-            reply_markup=keyboard,
+    f"🆔 Order: #{order_id}\n"
+    f"📌 Tur: {order_type}\n"
+    f"🪙 Qolgan EFC: {remaining}\n"
+    f"💵 1 EFC: {price:,.2f} UZS\n"
+    f"🔻 Minimal savdo: {min_trade} EFC\n"
+    f"⏱ Javob vaqti: {response_minutes} daqiqa",
+    reply_markup=keyboard,
         )
 
     await callback.answer()
