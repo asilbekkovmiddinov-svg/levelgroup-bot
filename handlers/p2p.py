@@ -209,38 +209,65 @@ async def p2p_min_trade_handler(message: Message, state: FSMContext):
         await message.answer("❌ Minimal savdo e’lon miqdoridan katta bo‘lmaydi.")
         return
 
+    await state.update_data(min_trade_efc=min_trade_efc)
+    await state.set_state(P2PState.response_minutes)
+
+    await message.answer(
+        "⏱ Xaridor javob berish vaqtini tanlang.\n\n"
+        "Xaridor buyurtma olgandan keyin shu vaqt ichida javob berishi kerak:",
+        reply_markup=p2p_response_time_keyboard(),
+    )
+    return
+
+
+@router.callback_query(F.data.startswith("p2p_time_"))
+async def p2p_response_time_selected(callback: CallbackQuery, state: FSMContext):
+    response_minutes = int(callback.data.replace("p2p_time_", ""))
+
+    data = await state.get_data()
+
+    order_type = data["order_type"]
+    efc_amount = data["efc_amount"]
+    price_uzs = data["price_uzs"]
+    min_trade_efc = data["min_trade_efc"]
+
     result = await create_p2p_order(
-        telegram_id=message.from_user.id,
+        telegram_id=callback.from_user.id,
         order_type=order_type,
         efc_amount=efc_amount,
         price_uzs=price_uzs,
         min_trade_efc=min_trade_efc,
+        response_minutes=response_minutes,
     )
 
     await state.clear()
 
     if not is_success(result):
-        await message.answer(
+        await callback.message.answer(
             "❌ P2P e’lon yaratilmadi.\n\n"
-            f"Sabab: {result.get('message', 'Noma’lum xatolik')}",
+            f"Sabab: {result.get('message', 'Backend error')}",
             reply_markup=p2p_menu_keyboard(),
         )
+        await callback.answer()
         return
 
     order = get_data(result)
     title = "SOTISH" if order_type == "SELL" else "SOTIB OLISH"
     total_uzs = efc_amount * price_uzs
 
-    await message.answer(
+    await callback.message.answer(
         f"✅ P2P {title} e’loni yaratildi!\n\n"
         f"🆔 Order: #{order.get('id')}\n"
         f"🪙 EFC: {efc_amount}\n"
         f"💵 1 EFC narxi: {price_uzs:,.2f} UZS\n"
         f"💰 Umumiy qiymat: {total_uzs:,.2f} UZS\n"
-        f"📌 Minimal savdo: {min_trade_efc} EFC\n\n"
+        f"📌 Minimal savdo: {min_trade_efc} EFC\n"
+        f"⏱ Javob vaqti: {response_minutes} daqiqa\n\n"
         "E’lon P2P Marketda ko‘rinadi.",
         reply_markup=p2p_menu_keyboard(),
     )
+
+    await callback.answer("✅ E’lon yaratildi.")
 
 
 @router.callback_query(F.data.startswith("p2p_orders_"))
