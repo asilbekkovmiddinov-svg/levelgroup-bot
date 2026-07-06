@@ -13,6 +13,7 @@ from handlers.deposit import router as deposit_router
 from handlers.withdraw import router as withdraw_router
 from handlers.p2p import router as p2p_router
 from handlers.wheel import router as wheel_router
+from handlers.admin_wheel import router as admin_wheel_router
 from handlers.chat_id import router as chat_id_router
 from handlers.admin_orders import router as admin_orders_router
 
@@ -33,6 +34,7 @@ dp.include_router(deposit_router)
 dp.include_router(withdraw_router)
 dp.include_router(p2p_router)
 dp.include_router(wheel_router)
+dp.include_router(admin_wheel_router)
 dp.include_router(chat_id_router)
 dp.include_router(admin_orders_router)
 
