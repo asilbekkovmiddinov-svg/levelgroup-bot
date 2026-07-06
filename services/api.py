@@ -256,3 +256,47 @@ async def update_p2p_order_price(
             },
         ) as response:
             return await safe_json(response)
+async def get_wheel_status(telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/wheel/status/{telegram_id}"
+        ) as response:
+            return await safe_json(response)
+
+
+async def spin_wheel(
+    telegram_id: int,
+    spin_type: str,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/wheel/spin",
+            json={
+                "telegram_id": telegram_id,
+                "spin_type": spin_type,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def fill_wheel_coin_order(
+    telegram_id: int,
+    spin_id: int,
+    konami_login: str,
+    konami_password: str,
+    region: str,
+    device: str,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/wheel/coin-order/details",
+            json={
+                "telegram_id": telegram_id,
+                "spin_id": spin_id,
+                "konami_login": konami_login,
+                "konami_password": konami_password,
+                "region": region,
+                "device": device,
+            },
+        ) as response:
+            return await safe_json(response)
