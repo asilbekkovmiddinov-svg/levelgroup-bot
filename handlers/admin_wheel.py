@@ -32,9 +32,20 @@ def format_duration(seconds: int):
     return f"{hours} soat {minutes} daqiqa"
 
 
+def get_winner_name(data: dict):
+    username = data.get("username")
+    first_name = data.get("first_name") or "Foydalanuvchi"
+    telegram_id = data.get("telegram_id")
+
+    if username and username != "username yo‘q":
+        return f"@{username}"
+
+    return f"{first_name}\n🆔 ID: {telegram_id}"
+
+
 def build_completed_text(data: dict, admin_name: str):
-    username = data.get("username") or "username yo‘q"
     coin_amount = int(data.get("coin_amount", 0))
+    winner_name = get_winner_name(data)
 
     duration = data.get("duration_seconds") or data.get("seconds") or 0
     duration_text = format_duration(int(duration))
@@ -45,7 +56,7 @@ def build_completed_text(data: dict, admin_name: str):
             "👑 NAVBATDAGI JACKPOT G'OLIBI 👑\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "🏆 Tabriklaymiz!\n\n"
-            f"👤 G'olib:\n@{username}\n\n"
+            f"👤 G'olib:\n{winner_name}\n\n"
             "💎 Yutuq:\n"
             f"{coin_amount} Coin JACKPOT\n\n"
             "⏱ Bajarilish vaqti:\n"
@@ -57,10 +68,10 @@ def build_completed_text(data: dict, admin_name: str):
         )
 
     return (
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "🎉 WHEEL G'OLIBI\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"👤 G'olib:\n@{username}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🎉 🏆 NAVBATDAGI WHEEL G'OLIBI\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 G'olib:\n{winner_name}\n\n"
         "🪙 Yutuq:\n"
         f"{coin_amount} Coin\n\n"
         "⏱ Bajarilish vaqti:\n"
