@@ -89,24 +89,56 @@ def device_keyboard():
     )
 
 
+from datetime import datetime
+
+
 def get_status_text(status):
-    free_text = "✅ ishlatilgan" if status.get("free_spin_used") else "🎁 tayyor"
+    free_text = "✅ Ishlatilgan" if status.get("free_spin_used") else "🎁 Tayyor"
+
     ad_count = status.get("ad_spin_count", 0)
     max_ad = status.get("max_ad_spins", 10)
+
     bonus_count = status.get("bonus_spin_count", 0)
 
+    timer_text = "✅ Hozir aylantirish mumkin"
+
+    next_spin = status.get("next_ad_spin_at")
+
+    if next_spin:
+        try:
+            next_time = datetime.fromisoformat(next_spin)
+            remain = next_time - datetime.utcnow()
+
+            seconds = int(remain.total_seconds())
+
+            if seconds > 0:
+                hours = seconds // 3600
+                minutes = (seconds % 3600) // 60
+                secs = seconds % 60
+
+                if hours:
+                    timer_text = f"⏳ {hours} soat {minutes} daqiqa"
+                else:
+                    timer_text = f"⏳ {minutes} daqiqa {secs} soniya"
+
+        except Exception:
+            pass
+
     return (
-        "🎰 LEVEL_GROUP Wheel\n\n"
+        "🎰 <b>LEVEL_GROUP Wheel</b>\n\n"
+
         f"🎁 Bepul spin: {free_text}\n"
-        f"📺 Reklama spin: {ad_count}/{max_ad}\n"
-        f"🍀 Bonus spin: {bonus_count}\n\n"
-        "Yutuqlar:\n"
-        "🪙 5 / 10 / 25 / 50 / 100 / 250 EFC\n"
-        "🏆 130 coin\n"
-        "👑 2000 coin Jackpot\n"
-        "🎁 Yana 1 marta bepul spin\n"
-        "❌ Yutqazish"
+        f"📺 Reklama: {ad_count}/{max_ad}\n"
+        f"🍀 Bonus spin: {bonus_count}\n"
+        f"⏰ Keyingi reklama: {timer_text}\n\n"
+
+        "🏆 Katta yutuqlar\n"
+        "⭐ 250 EFC\n"
+        "🪙 130 Coin\n"
+        "👑 2000 Coin Jackpot"
     )
+
+
 @router.message(F.text == "🎰 Wheel")
 async def wheel_menu(message: Message):
     status = await get_wheel_status(message.from_user.id)
