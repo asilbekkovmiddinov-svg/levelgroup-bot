@@ -323,13 +323,29 @@ async def wheel_coin_device(callback: CallbackQuery, state: FSMContext):
     )
 
     if ADMIN_CHAT_ID:
-        try:
-            await callback.bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text=admin_text,
-            )
-        except Exception:
-            pass
+    try:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✅ Bajarildi",
+                        callback_data=f"wheel_order_done_{result['data']['id']}",
+                    ),
+                    InlineKeyboardButton(
+                        text="❌ Rad etish",
+                        callback_data=f"wheel_order_reject_{result['data']['id']}",
+                    ),
+                ]
+            ]
+        )
+
+        await callback.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=admin_text,
+            reply_markup=keyboard,
+        )
+    except Exception:
+        pass
 
     await callback.message.answer(
         "✅ Coin buyurtmangiz adminga yuborildi!\n\n"
