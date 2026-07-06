@@ -34,6 +34,7 @@ class P2PState(StatesGroup):
     min_trade_efc = State()
     trade_amount = State()
     update_price = State()
+    response_minutes = State()
 
 def get_data(result):
     if isinstance(result, dict):
@@ -77,6 +78,24 @@ def p2p_menu_keyboard():
                     text="📋 Mening e’lonlarim",
                     callback_data="p2p_my_orders",
                 )
+            ],
+        ]
+    )
+
+
+def p2p_response_time_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⚡ 5 daqiqa", callback_data="p2p_time_5"),
+                InlineKeyboardButton(text="🕙 10 daqiqa", callback_data="p2p_time_10"),
+            ],
+            [
+                InlineKeyboardButton(text="🕒 15 daqiqa", callback_data="p2p_time_15"),
+                InlineKeyboardButton(text="🕕 30 daqiqa", callback_data="p2p_time_30"),
+            ],
+            [
+                InlineKeyboardButton(text="🕐 60 daqiqa", callback_data="p2p_time_60"),
             ],
         ]
     )
