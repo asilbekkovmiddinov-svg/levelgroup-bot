@@ -1,10 +1,10 @@
 import aiohttp
 
-from config import API_BASE_URL
+from config import BACKEND_URL
 
 
 async def _request(method: str, path: str, json: dict | None = None):
-    url = f"{API_BASE_URL}{path}"
+    url = f"{BACKEND_URL}{path}"
 
     async with aiohttp.ClientSession() as session:
         async with session.request(method, url, json=json) as response:
