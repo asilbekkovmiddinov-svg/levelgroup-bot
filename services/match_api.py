@@ -43,6 +43,20 @@ async def get_user_matches(telegram_id: int, skip: int = 0, limit: int = 20):
     )
 
 
+async def get_due_scheduled_matches(limit: int = 50):
+    return await _request(
+        "GET",
+        f"/matches/worker/due-scheduled?limit={limit}",
+    )
+
+
+async def get_expired_ready_matches(limit: int = 50):
+    return await _request(
+        "GET",
+        f"/matches/worker/expired-ready?limit={limit}",
+    )
+
+
 async def get_match(match_id: int):
     return await _request(
         "GET",
