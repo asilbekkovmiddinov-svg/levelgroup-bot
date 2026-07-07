@@ -16,6 +16,7 @@ from handlers.wheel import router as wheel_router
 from handlers.admin_wheel import router as admin_wheel_router
 from handlers.chat_id import router as chat_id_router
 from handlers.admin_orders import router as admin_orders_router
+from handlers.match import router as match_router
 
 from middlewares.user_seen import UserSeenMiddleware
 from services.api import check_p2p_timeouts
@@ -43,6 +44,7 @@ dp.include_router(wheel_router)
 dp.include_router(admin_wheel_router)
 dp.include_router(chat_id_router)
 dp.include_router(admin_orders_router)
+dp.include_router(match_router)
 
 
 async def p2p_timeout_worker():
