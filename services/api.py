@@ -258,6 +258,83 @@ async def update_p2p_order_price(
             },
         ) as response:
             return await safe_json(response)
+
+
+async def update_p2p_order_amount(
+    order_id: int,
+    telegram_id: int,
+    efc_amount: float,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/update-amount",
+            json={
+                "telegram_id": telegram_id,
+                "efc_amount": efc_amount,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def update_p2p_order_min_trade(
+    order_id: int,
+    telegram_id: int,
+    min_trade_efc: float,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/update-min-trade",
+            json={
+                "telegram_id": telegram_id,
+                "min_trade_efc": min_trade_efc,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def update_p2p_order_response_minutes(
+    order_id: int,
+    telegram_id: int,
+    response_minutes: int,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/{order_id}/update-response-minutes",
+            json={
+                "telegram_id": telegram_id,
+                "response_minutes": response_minutes,
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def get_p2p_history(
+    telegram_id: int,
+    status: str | None = None,
+):
+    params = {}
+
+    if status:
+        params["status"] = status
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/p2p/history/{telegram_id}",
+            params=params,
+        ) as response:
+            if response.status != 200:
+                return []
+            return await safe_json(response)
+
+
+async def check_p2p_timeouts():
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/p2p/timeouts/check"
+        ) as response:
+            return await safe_json(response)
+
+
 async def get_wheel_status(telegram_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.get(
