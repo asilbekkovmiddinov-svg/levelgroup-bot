@@ -17,6 +17,8 @@ from handlers.admin_wheel import router as admin_wheel_router
 from handlers.chat_id import router as chat_id_router
 from handlers.admin_orders import router as admin_orders_router
 
+from middlewares.user_seen import UserSeenMiddleware
+
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -26,6 +28,9 @@ bot = Bot(
 )
 
 dp = Dispatcher()
+
+dp.message.middleware(UserSeenMiddleware())
+dp.callback_query.middleware(UserSeenMiddleware())
 
 dp.include_router(start_router)
 dp.include_router(wallet_router)
