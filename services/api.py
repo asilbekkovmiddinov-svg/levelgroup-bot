@@ -18,6 +18,14 @@ async def get_wallet(telegram_id: int):
             return await safe_json(response)
 
 
+async def update_user_seen(telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/user/{telegram_id}/seen"
+        ) as response:
+            return await safe_json(response)
+
+
 async def get_products():
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{BACKEND_URL}/products/active") as response:
