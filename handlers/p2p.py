@@ -407,7 +407,8 @@ async def p2p_open_orders(callback: CallbackQuery):
         await callback.message.answer(
             f"🆔 Order: #{order_id}\n"
             f"📌 Tur: {order_type}\n"
-            f"🟢 Holat: Online/Offline keyingi bosqichda\n"
+            f"{order.get('owner_online_text', '⚪ Offline')}\n"
+            f"🕒 Oxirgi faollik: {order.get('owner_last_seen_text', 'Noma’lum')}\n"
             f"🪙 Qolgan EFC: {format_efc(remaining)}\n"
             f"💵 1 EFC: {format_money(price)} UZS\n"
             f"🔻 Minimal savdo: {format_efc(min_trade)} EFC\n"
