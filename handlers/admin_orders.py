@@ -12,6 +12,7 @@ from services.api import (
 )
 
 router = Router()
+active_actions = set()
 
 
 def format_seconds(seconds):
@@ -48,14 +49,33 @@ async def notify_user(bot, telegram_id, text):
         return False
 
 
+async def begin_action(callback: CallbackQuery, action: str, order_id: int):
+    key = f"{action}:{order_id}"
+    if key in active_actions:
+        await callback.answer("⏳ Amal allaqachon bajarilmoqda.", show_alert=True)
+        return None
+    active_actions.add(key)
+    return key
+
+
+def withdraw_is_claimed(callback: CallbackQuery):
+    return "📌 Status: CLAIMED" in (callback.message.text or "")
+
+
 @router.callback_query(F.data.startswith("claim_deposit_"))
 async def claim_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("claim_deposit_", ""))
+    action_key = await begin_action(callback, "claim_deposit", deposit_id)
+    if not action_key:
+        return
 
-    result = await claim_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await claim_deposit(
+            deposit_id=deposit_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") == "Deposit already claimed":
         await callback.answer(
@@ -110,11 +130,17 @@ async def claim_deposit_handler(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("approve_deposit_"))
 async def approve_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("approve_deposit_", ""))
+    action_key = await begin_action(callback, "approve_deposit", deposit_id)
+    if not action_key:
+        return
 
-    result = await approve_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await approve_deposit(
+            deposit_id=deposit_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") != "Deposit approved":
         await callback.answer(
@@ -131,7 +157,7 @@ async def approve_deposit_handler(callback: CallbackQuery):
     amount = int(result.get("amount", 0))
 
     caption = callback.message.caption or ""
-    caption = caption.replace("📌 Status: CLAIMED", "🟢 Status: COMPLETED")
+    caption = caption.replace("📌 Status: CLAIMED", "🟢 Status: APPROVED")
 
     await callback.message.edit_caption(caption=caption, reply_markup=None)
 
@@ -182,11 +208,17 @@ async def approve_deposit_handler(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("reject_deposit_"))
 async def reject_deposit_handler(callback: CallbackQuery):
     deposit_id = int(callback.data.replace("reject_deposit_", ""))
+    action_key = await begin_action(callback, "reject_deposit", deposit_id)
+    if not action_key:
+        return
 
-    result = await reject_deposit(
-        deposit_id=deposit_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await reject_deposit(
+            deposit_id=deposit_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") != "Deposit rejected":
         await callback.answer(
@@ -240,11 +272,17 @@ async def reject_deposit_handler(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("claim_withdraw_"))
 async def claim_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("claim_withdraw_", ""))
+    action_key = await begin_action(callback, "claim_withdraw", withdraw_id)
+    if not action_key:
+        return
 
-    result = await claim_withdraw(
-        withdraw_id=withdraw_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await claim_withdraw(
+            withdraw_id=withdraw_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") == "Withdraw already claimed":
         await callback.answer(
@@ -300,12 +338,21 @@ async def approve_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("approve_withdraw_", ""))
 
     old_text = callback.message.text or ""
+    if not withdraw_is_claimed(callback):
+        await callback.answer("❌ Avval withdraw so‘rovini claim qiling.", show_alert=True)
+        return
+    action_key = await begin_action(callback, "approve_withdraw", withdraw_id)
+    if not action_key:
+        return
     username = get_line_value(old_text, "👤 Mijoz:")
 
-    result = await approve_withdraw(
-        withdraw_id=withdraw_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await approve_withdraw(
+            withdraw_id=withdraw_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
         await callback.answer(
@@ -393,12 +440,21 @@ async def reject_withdraw_handler(callback: CallbackQuery):
     withdraw_id = int(callback.data.replace("reject_withdraw_", ""))
 
     old_text = callback.message.text or ""
+    if not withdraw_is_claimed(callback):
+        await callback.answer("❌ Avval withdraw so‘rovini claim qiling.", show_alert=True)
+        return
+    action_key = await begin_action(callback, "reject_withdraw", withdraw_id)
+    if not action_key:
+        return
     username = get_line_value(old_text, "👤 Mijoz:")
 
-    result = await reject_withdraw(
-        withdraw_id=withdraw_id,
-        admin_id=callback.from_user.id,
-    )
+    try:
+        result = await reject_withdraw(
+            withdraw_id=withdraw_id,
+            admin_id=callback.from_user.id,
+        )
+    finally:
+        active_actions.discard(action_key)
 
     if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
         await callback.answer(
