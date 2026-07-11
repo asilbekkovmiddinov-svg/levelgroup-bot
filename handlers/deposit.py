@@ -69,7 +69,9 @@ async def deposit_receipt(message: Message, state: FSMContext):
     )
 
     if result.get("message") != "Deposit request created":
-        await message.answer("❌ Xatolik yuz berdi. Qayta urinib ko'ring.")
+        await message.answer(
+            f"❌ {result.get('message', 'Xatolik yuz berdi. Qayta urinib ko‘ring.')}"
+        )
         await state.clear()
         return
 
