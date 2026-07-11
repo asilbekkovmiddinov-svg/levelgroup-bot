@@ -163,6 +163,9 @@ async def withdraw_amount(message: Message, state: FSMContext):
         return
 
     withdraw_id = result["withdraw_id"]
+    withdraw_status = result.get("status", "PENDING")
+    created_at = result.get("created_at")
+    created_line = f"🕒 Yaratilgan: {created_at}\n" if created_at else ""
 
     username = (
         f"@{message.from_user.username}"
@@ -194,7 +197,8 @@ async def withdraw_amount(message: Message, state: FSMContext):
             f"💳 Karta: {formatted_card}\n"
             f"👤 Karta egasi: {full_name}\n\n"
             "⏳ Muddat: 24 soatgacha\n"
-            "📌 Status: PENDING\n\n"
+            f"📌 Status: {withdraw_status}\n"
+            f"{created_line}\n"
             "👇 Adminlardan biri qabul qilsin."
         ),
         reply_markup=keyboard,
@@ -209,5 +213,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
         f"🏦 Bank: {bank_name}\n"
         f"💳 Karta: {formatted_card}\n"
         f"👤 Karta egasi: {full_name}\n\n"
+        f"📌 Status: {withdraw_status}\n"
+        f"{created_line}\n"
         "⏳ To‘lov 24 soat ichida kartangizga yuboriladi."
     )

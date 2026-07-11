@@ -8,10 +8,12 @@ from config import BACKEND_URL, INTERNAL_API_KEY
 REQUEST_TIMEOUT_SECONDS = 15
 
 STATUS_MESSAGES = {
+    400: "So‘rov ma’lumotlari yoki balans yetarli emas.",
     401: "Backend autentifikatsiyani rad etdi.",
     403: "Bu amal uchun ruxsat yo‘q.",
     404: "So‘rov topilmadi.",
     409: "So‘rov holati o‘zgargan. Yangilab qayta urinib ko‘ring.",
+    422: "Yuborilgan ma’lumotlar noto‘g‘ri.",
     500: "Backendda ichki xatolik yuz berdi.",
 }
 
@@ -130,7 +132,7 @@ async def create_withdraw(
 ):
     return await wallet_request(
         "POST",
-        "/withdraw/create",
+        "/internal/withdraw/create",
         json={
             "telegram_id": telegram_id,
             "amount": amount,
