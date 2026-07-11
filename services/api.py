@@ -75,7 +75,14 @@ async def wallet_request(method: str, path: str, **kwargs):
 
 
 async def get_wallet(telegram_id: int):
-    return await wallet_request("GET", f"/wallet/{telegram_id}")
+    result = await wallet_request("GET", f"/internal/wallet/{telegram_id}")
+
+    if result.get("status_code") == 403:
+        result["message"] = "Internal API key noto‘g‘ri yoki sozlanmagan."
+    elif result.get("status_code") == 404:
+        result["message"] = "Foydalanuvchi yoki wallet topilmadi."
+
+    return result
 
 
 async def update_user_seen(telegram_id: int):
