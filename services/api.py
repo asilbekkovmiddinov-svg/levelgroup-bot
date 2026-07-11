@@ -1,6 +1,19 @@
+import asyncio
+
 import aiohttp
 
-from config import BACKEND_URL
+from config import BACKEND_URL, INTERNAL_API_KEY
+
+
+REQUEST_TIMEOUT_SECONDS = 15
+
+STATUS_MESSAGES = {
+    401: "Backend autentifikatsiyani rad etdi.",
+    403: "Bu amal uchun ruxsat yo‘q.",
+    404: "So‘rov topilmadi.",
+    409: "So‘rov holati o‘zgargan. Yangilab qayta urinib ko‘ring.",
+    500: "Backendda ichki xatolik yuz berdi.",
+}
 
 
 async def safe_json(response):
@@ -10,12 +23,59 @@ async def safe_json(response):
         return {"success": False, "message": "Backend error"}
 
 
+def internal_headers():
+    if not INTERNAL_API_KEY:
+        return None
+    return {"X-Internal-Api-Key": INTERNAL_API_KEY}
+
+
+async def wallet_request(method: str, path: str, **kwargs):
+    headers = internal_headers()
+    if not headers:
+        return {
+            "success": False,
+            "status_code": 500,
+            "message": "INTERNAL_API_KEY bot sozlamasida yo‘q.",
+        }
+
+    timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.request(
+                method,
+                f"{BACKEND_URL}{path}",
+                headers=headers,
+                **kwargs,
+            ) as response:
+                data = await safe_json(response)
+    except asyncio.TimeoutError:
+        return {
+            "success": False,
+            "status_code": 504,
+            "message": "Backend javobi kutilgan vaqtdan oshdi.",
+        }
+    except aiohttp.ClientError:
+        return {
+            "success": False,
+            "status_code": 503,
+            "message": "Backend bilan tarmoq aloqasi uzildi.",
+        }
+
+    if not isinstance(data, dict):
+        data = {"message": "Backend noto‘g‘ri javob qaytardi."}
+
+    data["status_code"] = response.status
+    data["success"] = 200 <= response.status < 300
+    if response.status >= 400:
+        data["message"] = data.get("message") or data.get("detail") or STATUS_MESSAGES.get(
+            response.status,
+            "Backend so‘rovni bajarmadi.",
+        )
+    return data
+
+
 async def get_wallet(telegram_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"{BACKEND_URL}/wallet/{telegram_id}") as response:
-            if response.status != 200:
-                return None
-            return await safe_json(response)
+    return await wallet_request("GET", f"/wallet/{telegram_id}")
 
 
 async def update_user_seen(telegram_id: int):
@@ -47,15 +107,11 @@ async def create_order(telegram_id: int, product_id: int):
 
 
 async def create_deposit(telegram_id: int, amount: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/deposit/create",
-            json={
-                "telegram_id": telegram_id,
-                "amount": amount,
-            },
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        "/deposit/create",
+        json={"telegram_id": telegram_id, "amount": amount},
+    )
 
 
 async def create_withdraw(
@@ -65,77 +121,67 @@ async def create_withdraw(
     card_holder: str,
     bank_name: str,
 ):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/withdraw/create",
-            json={
-                "telegram_id": telegram_id,
-                "amount": amount,
-                "card_number": card_number,
-                "card_holder": card_holder,
-                "bank_name": bank_name,
-            },
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        "/withdraw/create",
+        json={
+            "telegram_id": telegram_id,
+            "amount": amount,
+            "card_number": card_number,
+            "card_holder": card_holder,
+            "bank_name": bank_name,
+        },
+    )
 
 
 async def claim_deposit(deposit_id: int, admin_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/deposit/{deposit_id}/claim",
-            json={"admin_id": admin_id},
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        f"/deposit/{deposit_id}/claim",
+        json={"admin_id": admin_id},
+    )
 
 
 async def approve_deposit(deposit_id: int, admin_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/deposit/{deposit_id}/approve",
-            json={"admin_id": admin_id},
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        f"/deposit/{deposit_id}/approve",
+        json={"admin_id": admin_id},
+    )
 async def reject_deposit(
     deposit_id: int,
     admin_id: int,
     reason: str = "Admin rad etdi",
 ):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/deposit/{deposit_id}/reject",
-            json={
-                "admin_id": admin_id,
-                "reason": reason,
-            },
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        f"/deposit/{deposit_id}/reject",
+        json={"admin_id": admin_id, "reason": reason},
+    )
 
 
 async def claim_withdraw(withdraw_id: int, admin_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/withdraw/{withdraw_id}/claim",
-            params={"admin_id": admin_id},
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        f"/withdraw/{withdraw_id}/claim",
+        params={"admin_id": admin_id},
+    )
 
 
 async def approve_withdraw(withdraw_id: int, admin_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/withdraw/approve/{withdraw_id}",
-            params={"admin_id": admin_id},
-        ) as response:
-            return await safe_json(response)
+    return await wallet_request(
+        "POST",
+        f"/withdraw/approve/{withdraw_id}",
+        params={"admin_id": admin_id},
+    )
 
 
-async def reject_withdraw(withdraw_id: int, admin_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/withdraw/reject/{withdraw_id}",
-            params={"admin_id": admin_id},
-        ) as response:
-            return await safe_json(response)
+async def reject_withdraw(withdraw_id: int, admin_id: int, reason: str = "Admin rad etdi"):
+    return await wallet_request(
+        "POST",
+        f"/withdraw/reject/{withdraw_id}",
+        params={"admin_id": admin_id, "reason": reason},
+    )
 
 
 async def create_p2p_order(
