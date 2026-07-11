@@ -28,10 +28,11 @@ def format_uzs(value):
 async def wallet(message: Message):
     data = await get_wallet(message.from_user.id)
 
-    if not data:
+    if not data or data.get("success") is False:
+        error_text = (data or {}).get("message", "Hamyon topilmadi.")
         await message.answer(
-            "❌ Hamyon topilmadi.\n\n"
-            "Iltimos, avval /start buyrug'ini bosing."
+            f"❌ {error_text}\n\n"
+            "Iltimos, keyinroq qayta urinib ko‘ring."
         )
         return
 
