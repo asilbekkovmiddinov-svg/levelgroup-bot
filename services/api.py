@@ -87,6 +87,28 @@ async def get_wallet(telegram_id: int):
     return result
 
 
+async def register_internal_user(
+    telegram_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+):
+    return await wallet_request(
+        "POST",
+        "/internal/users/register",
+        json={
+            "telegram_id": telegram_id,
+            "username": username,
+            "first_name": first_name,
+            "last_name": last_name,
+        },
+    )
+
+
+async def update_internal_user_seen(telegram_id: int):
+    return await wallet_request("POST", f"/internal/users/{telegram_id}/seen")
+
+
 async def get_products():
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{BACKEND_URL}/products/active") as response:
