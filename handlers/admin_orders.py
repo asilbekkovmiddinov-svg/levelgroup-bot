@@ -77,9 +77,9 @@ async def claim_deposit_handler(callback: CallbackQuery):
     finally:
         active_actions.discard(action_key)
 
-    if result.get("message") == "Deposit already claimed":
+    if result.get("status_code") == 409:
         await callback.answer(
-            "❌ Bu depozit boshqa admin tomonidan qabul qilingan.",
+            "❌ Bu depozit allaqachon qabul qilingan yoki holati o‘zgargan.",
             show_alert=True,
         )
         return
@@ -284,9 +284,9 @@ async def claim_withdraw_handler(callback: CallbackQuery):
     finally:
         active_actions.discard(action_key)
 
-    if result.get("message") == "Withdraw already claimed":
+    if result.get("status_code") == 409:
         await callback.answer(
-            "❌ Bu withdraw boshqa admin tomonidan qabul qilingan.",
+            "❌ Bu withdraw allaqachon qabul qilingan yoki holati o‘zgargan.",
             show_alert=True,
         )
         return
@@ -354,9 +354,9 @@ async def approve_withdraw_handler(callback: CallbackQuery):
     finally:
         active_actions.discard(action_key)
 
-    if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
+    if result.get("status_code") == 409:
         await callback.answer(
-            "❌ Bu withdraw boshqa adminga biriktirilgan.",
+            "❌ Bu withdraw holati o‘zgargan yoki boshqa adminga biriktirilgan.",
             show_alert=True,
         )
         return
@@ -456,9 +456,9 @@ async def reject_withdraw_handler(callback: CallbackQuery):
     finally:
         active_actions.discard(action_key)
 
-    if result.get("message") == "Withdraw boshqa admin tomonidan qabul qilingan":
+    if result.get("status_code") == 409:
         await callback.answer(
-            "❌ Bu withdraw boshqa adminga biriktirilgan.",
+            "❌ Bu withdraw holati o‘zgargan yoki boshqa adminga biriktirilgan.",
             show_alert=True,
         )
         return

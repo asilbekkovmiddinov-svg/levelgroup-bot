@@ -15,6 +15,7 @@ STATUS_MESSAGES = {
     409: "So‘rov holati o‘zgargan. Yangilab qayta urinib ko‘ring.",
     422: "Yuborilgan ma’lumotlar noto‘g‘ri.",
     500: "Backendda ichki xatolik yuz berdi.",
+    503: "Backend xizmati vaqtincha ishlamayapti. Keyinroq qayta urinib ko‘ring.",
 }
 
 
@@ -37,7 +38,7 @@ async def wallet_request(method: str, path: str, **kwargs):
         return {
             "success": False,
             "status_code": 500,
-            "message": "INTERNAL_API_KEY bot sozlamasida yo‘q.",
+            "message": "Botning ichki ulanishi sozlanmagan.",
         }
 
     timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
@@ -69,9 +70,8 @@ async def wallet_request(method: str, path: str, **kwargs):
     data["status_code"] = response.status
     data["success"] = 200 <= response.status < 300
     if response.status >= 400:
-        data["message"] = data.get("message") or data.get("detail") or STATUS_MESSAGES.get(
-            response.status,
-            "Backend so‘rovni bajarmadi.",
+        data["message"] = STATUS_MESSAGES.get(
+            response.status, "Backend so‘rovni bajarmadi."
         )
     return data
 
@@ -85,14 +85,6 @@ async def get_wallet(telegram_id: int):
         result["message"] = "Foydalanuvchi yoki wallet topilmadi."
 
     return result
-
-
-async def update_user_seen(telegram_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/user/{telegram_id}/seen"
-        ) as response:
-            return await safe_json(response)
 
 
 async def get_products():
@@ -118,7 +110,7 @@ async def create_order(telegram_id: int, product_id: int):
 async def create_deposit(telegram_id: int, amount: int):
     return await wallet_request(
         "POST",
-        "/deposit/create",
+        "/internal/deposit/create",
         json={"telegram_id": telegram_id, "amount": amount},
     )
 
