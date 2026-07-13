@@ -58,16 +58,40 @@ class ArenaRoutingTests(unittest.TestCase):
             self.assertNotIn(forbidden, called_names)
         self.assertIn("WebAppInfo", source)
 
-    def test_admin_handler_uses_internal_resolve_only(self):
+    def test_admin_handler_uses_moderation_service_only(self):
         source = (ROOT / "handlers" / "admin_match.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         match_api_imports = set()
+        moderation_imports = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module == "services.match_api":
                 match_api_imports.update(alias.name for alias in node.names)
+            if isinstance(node, ast.ImportFrom) and node.module == "services.arena_moderation":
+                moderation_imports.update(alias.name for alias in node.names)
 
-        self.assertEqual(match_api_imports, {"resolve_match"})
-        self.assertIn('decision="CANCEL"', source)
+        self.assertEqual(match_api_imports, set())
+        self.assertIn("apply_arena_decision", moderation_imports)
+
+        moderation_source = (ROOT / "services" / "arena_moderation.py").read_text(
+            encoding="utf-8"
+        )
+        moderation_tree = ast.parse(moderation_source)
+        moderation_api_imports = set()
+        for node in ast.walk(moderation_tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "services.match_api":
+                moderation_api_imports.update(alias.name for alias in node.names)
+        self.assertEqual(moderation_api_imports, {"ArenaApiError", "resolve_match"})
+        self.assertIn("ArenaDecision.CANCEL", source)
+        for label in (
+            "🏆 Player 1 Win",
+            "🏆 Player 2 Win",
+            "⚙️ Technical Win",
+            "💰 Refund",
+            "❌ Cancel",
+        ):
+            self.assertIn(label, source)
+        self.assertIn('"✅ <b>Decision applied</b>', source)
+        self.assertIn("reply_markup=None", source)
 
     def test_worker_uses_only_internal_arena_api_methods(self):
         source = (ROOT / "bot.py").read_text(encoding="utf-8")
