@@ -24,6 +24,7 @@ from services.api import (
     update_p2p_order_min_trade,
     update_p2p_order_response_minutes,
 )
+from utils.datetime import format_tashkent_datetime
 
 router = Router()
 
@@ -997,7 +998,7 @@ async def p2p_history(callback: CallbackQuery):
             f"💰 Jami: {format_money(trade.get('total_uzs'))} UZS\n"
             f"🔥 EFC komissiya: {format_efc(trade.get('efc_fee'))}\n"
             f"💸 UZS komissiya: {format_money(trade.get('uzs_fee'))} UZS\n"
-            f"📅 Sana: {trade.get('created_at')}"
+            f"📅 Sana: {format_tashkent_datetime(trade.get('created_at'))}"
         )
 
     await callback.answer()

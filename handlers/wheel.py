@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import Router, F
 from aiogram.types import (
@@ -16,6 +16,7 @@ from services.api import (
     spin_wheel,
     fill_wheel_coin_order,
 )
+from utils.datetime import parse_datetime
 
 router = Router()
 
@@ -122,8 +123,8 @@ def get_status_text(status):
 
     if next_spin:
         try:
-            next_time = datetime.fromisoformat(next_spin)
-            remain = next_time - datetime.utcnow()
+            next_time = parse_datetime(next_spin)
+            remain = next_time - datetime.now(timezone.utc)
             seconds = int(remain.total_seconds())
 
             if seconds > 0:
