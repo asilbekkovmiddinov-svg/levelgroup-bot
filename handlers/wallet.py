@@ -26,7 +26,10 @@ def format_uzs(value):
 
 @router.message(F.text == "💰 Hamyon")
 async def wallet(message: Message):
-    data = await get_wallet(message.from_user.id)
+    try:
+        data = await get_wallet(message.from_user.id)
+    except Exception:
+        data = None
 
     if not data:
         await message.answer(

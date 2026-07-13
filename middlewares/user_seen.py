@@ -19,6 +19,7 @@ class UserSeenMiddleware(BaseMiddleware):
             try:
                 await update_user_seen(user.id)
             except Exception:
+                # Activity tracking must never block the user's update.
                 pass
 
         return await handler(event, data)

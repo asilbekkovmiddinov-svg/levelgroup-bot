@@ -5,9 +5,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
-import aiohttp
-
-from config import BACKEND_URL
+from services.api import register_internal_user
 
 router = Router()
 
@@ -34,19 +32,16 @@ def main_keyboard():
 
 @router.message(CommandStart())
 async def start_command(message: Message):
-    async with aiohttp.ClientSession() as session:
-        try:
-            await session.post(
-                f"{BACKEND_URL}/user/register",
-                json={
-                    "telegram_id": message.from_user.id,
-                    "first_name": message.from_user.first_name,
-                    "username": message.from_user.username or "",
-                    "language": "uz",
-                },
-            )
-        except Exception as e:
-            print(e)
+    try:
+        await register_internal_user(
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+        )
+    except Exception:
+        # Registration failure must not expose secrets or block the welcome UX.
+        pass
 
     await message.answer(
         "👋 Assalomu alaykum!\n\n"

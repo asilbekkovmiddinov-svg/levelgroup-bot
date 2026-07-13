@@ -1,6 +1,12 @@
 import aiohttp
 
-from config import BACKEND_URL
+from config import BACKEND_URL, INTERNAL_API_KEY
+
+
+def internal_headers():
+    if not INTERNAL_API_KEY:
+        raise RuntimeError("INTERNAL_API_KEY sozlanmagan")
+    return {"X-Internal-Api-Key": INTERNAL_API_KEY}
 
 
 async def safe_json(response):
@@ -12,7 +18,10 @@ async def safe_json(response):
 
 async def get_wallet(telegram_id: int):
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"{BACKEND_URL}/wallet/{telegram_id}") as response:
+        async with session.get(
+            f"{BACKEND_URL}/internal/wallet/{telegram_id}",
+            headers=internal_headers(),
+        ) as response:
             if response.status != 200:
                 return None
             return await safe_json(response)
@@ -21,7 +30,28 @@ async def get_wallet(telegram_id: int):
 async def update_user_seen(telegram_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{BACKEND_URL}/user/{telegram_id}/seen"
+            f"{BACKEND_URL}/internal/users/{telegram_id}/seen",
+            headers=internal_headers(),
+        ) as response:
+            return await safe_json(response)
+
+
+async def register_internal_user(
+    telegram_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/internal/users/register",
+            headers=internal_headers(),
+            json={
+                "telegram_id": telegram_id,
+                "username": username,
+                "first_name": first_name,
+                "last_name": last_name,
+            },
         ) as response:
             return await safe_json(response)
 
