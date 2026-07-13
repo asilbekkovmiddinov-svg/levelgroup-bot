@@ -7,7 +7,7 @@ from aiogram.types import (
 )
 
 from config import ADMIN_CHAT_ID, MATCH_RESULTS_CHANNEL_ID
-from services.match_api import get_match, resolve_match, cancel_match
+from services.match_api import resolve_match
 
 
 router = Router()
@@ -108,15 +108,10 @@ async def admin_match_command(message: Message):
         await message.answer("❌ Match ID raqam bo‘lishi kerak.")
         return
 
-    try:
-        match = await get_match(match_id)
-    except ValueError as error:
-        await message.answer(f"❌ {error}")
-        return
-
     await message.answer(
-        format_admin_match(match),
-        reply_markup=admin_match_keyboard(match),
+        "ℹ️ Arena match tafsilotlari authsiz user endpointdan olinmaydi.\n\n"
+        f"Match <code>#{match_id}</code> uchun admin review xabaridagi "
+        "moderatsiya tugmalaridan foydalaning."
     )
 
 
@@ -182,10 +177,11 @@ async def admin_match_cancel(callback: CallbackQuery):
     match_id = int(callback.data.split(":")[1])
 
     try:
-        match = await cancel_match(
+        match = await resolve_match(
             match_id=match_id,
             admin_telegram_id=callback.from_user.id,
-            cancel_reason="Admin tomonidan bekor qilindi",
+            decision="CANCEL",
+            admin_comment="Admin tomonidan bekor qilindi",
         )
     except ValueError as error:
         await callback.message.edit_text(f"❌ {error}")

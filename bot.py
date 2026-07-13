@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from config import BOT_TOKEN
 
@@ -28,6 +28,7 @@ from services.match_api import (
     get_expired_ready_matches,
     start_ready_check,
 )
+from services.arena_links import ArenaMiniAppConfigError, build_arena_miniapp_url
 
 
 bot = Bot(
@@ -57,12 +58,16 @@ dp.include_router(admin_match_router)
 
 
 def ready_keyboard(match_id: int):
+    try:
+        url = build_arena_miniapp_url(action="ready", match_id=match_id)
+    except ArenaMiniAppConfigError:
+        return None
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Men tayyorman",
-                    callback_data=f"arena_ready:{match_id}",
+                    text="✅ MiniApp’da tayyorlikni tasdiqlash",
+                    web_app=WebAppInfo(url=url),
                 )
             ]
         ]
@@ -140,11 +145,11 @@ async def arena_ready_start_worker():
                             except Exception:
                                 pass
 
-                except Exception as error:
-                    print(f"Arena ready start item error: {error}")
+                except Exception:
+                    print("Arena ready start item failed")
 
-        except Exception as error:
-            print(f"Arena ready start worker error: {error}")
+        except Exception:
+            print("Arena ready start worker failed")
 
         await asyncio.sleep(10)
 
@@ -163,18 +168,17 @@ async def arena_ready_finish_worker():
 
                     status = updated_match["status"]
 
-                    if status == "WAITING_ROOM_CODE":
+                    if status == "ROOM_READY":
                         text = (
                             "✅ Ikkala o‘yinchi ham tayyor!\n\n"
                             f"🆔 Match ID: <code>{updated_match['id']}</code>\n\n"
                             "Endi Room Code yozish mumkin."
                         )
-                    elif status == "TECHNICAL_WIN":
+                    elif status == "TECHNICAL_REVIEW":
                         text = (
                             "⚠️ Match texnik g‘alaba holatiga o‘tdi.\n\n"
                             f"🆔 Match ID: <code>{updated_match['id']}</code>\n"
-                            f"🏆 Texnik g‘olib: <code>{updated_match['winner_telegram_id']}</code>\n\n"
-                            "Admin tasdiqlagandan keyin mukofot beriladi."
+                            "Admin texnik holatni ko‘rib chiqadi."
                         )
                     elif status == "CANCELLED":
                         text = (
@@ -203,11 +207,11 @@ async def arena_ready_finish_worker():
                             except Exception:
                                 pass
 
-                except Exception as error:
-                    print(f"Arena ready finish item error: {error}")
+                except Exception:
+                    print("Arena ready finish item failed")
 
-        except Exception as error:
-            print(f"Arena ready finish worker error: {error}")
+        except Exception:
+            print("Arena ready finish worker failed")
 
         await asyncio.sleep(10)
 
