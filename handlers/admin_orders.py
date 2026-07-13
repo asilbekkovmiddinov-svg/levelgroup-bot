@@ -40,6 +40,14 @@ def get_line_value(text: str, label: str, default: str = "Nomaʼlum"):
     return default
 
 
+def get_error_message(result):
+    return (
+        result.get("message")
+        or result.get("detail")
+        or "Backend bilan bog‘lanishda xatolik"
+    )
+
+
 async def notify_user(bot, telegram_id, text):
     try:
         await bot.send_message(chat_id=telegram_id, text=text)
@@ -66,7 +74,7 @@ async def claim_deposit_handler(callback: CallbackQuery):
 
     if result.get("message") != "Deposit claimed":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
@@ -118,7 +126,7 @@ async def approve_deposit_handler(callback: CallbackQuery):
 
     if result.get("message") != "Deposit approved":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
@@ -190,7 +198,7 @@ async def reject_deposit_handler(callback: CallbackQuery):
 
     if result.get("message") != "Deposit rejected":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
@@ -255,7 +263,7 @@ async def claim_withdraw_handler(callback: CallbackQuery):
 
     if result.get("message") != "Withdraw claimed":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
@@ -316,7 +324,7 @@ async def approve_withdraw_handler(callback: CallbackQuery):
 
     if result.get("message") != "Withdraw tasdiqlandi":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
@@ -409,7 +417,7 @@ async def reject_withdraw_handler(callback: CallbackQuery):
 
     if result.get("message") != "Withdraw rad etildi, pul balansga qaytarildi":
         await callback.answer(
-            f"❌ Xatolik: {result.get('message', 'Nomaʼlum')}",
+            f"❌ Xatolik: {get_error_message(result)}",
             show_alert=True,
         )
         return
