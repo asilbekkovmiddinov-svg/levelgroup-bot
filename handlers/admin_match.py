@@ -8,6 +8,7 @@ from aiogram.types import (
 
 from config import ADMIN_CHAT_ID, MATCH_RESULTS_CHANNEL_ID
 from services.match_api import resolve_match
+from services.arena_notifications import ArenaNotification, send_arena_notification
 
 
 router = Router()
@@ -143,18 +144,20 @@ async def admin_match_win(callback: CallbackQuery):
     )
 
     for user_id in [match["creator_telegram_id"], match["opponent_telegram_id"]]:
-        try:
-            await callback.bot.send_message(
-                chat_id=user_id,
-                text=(
-                    "🏁 <b>1vs1 Arena match yakunlandi!</b>\n\n"
-                    f"🆔 Match ID: <code>{match['id']}</code>\n"
-                    f"🏆 G‘olib: <code>{match['winner_telegram_id']}</code>\n"
-                    f"💰 Mukofot: <b>{match['winner_reward']} EFC</b>"
+        if user_id:
+            is_winner = user_id == match["winner_telegram_id"]
+            await send_arena_notification(
+                callback.bot,
+                user_id,
+                ArenaNotification.WINNER if is_winner else ArenaNotification.ADMIN_REVIEW,
+                match_id=match["id"],
+                amount=match["winner_reward"] if is_winner else None,
+                detail=(
+                    "Mukofot hisobingizga o‘tkazildi."
+                    if is_winner
+                    else "Match natijasi admin tomonidan yakunlandi."
                 ),
             )
-        except Exception:
-            pass
 
     if MATCH_RESULTS_CHANNEL_ID:
         try:
@@ -195,16 +198,12 @@ async def admin_match_cancel(callback: CallbackQuery):
 
     for user_id in [match["creator_telegram_id"], match["opponent_telegram_id"]]:
         if user_id:
-            try:
-                await callback.bot.send_message(
-                    chat_id=user_id,
-                    text=(
-                        "❌ <b>1vs1 Arena match bekor qilindi.</b>\n\n"
-                        f"🆔 Match ID: <code>{match['id']}</code>\n"
-                        "Locked EFC balansga qaytarildi."
-                    ),
-                )
-            except Exception:
-                pass
+            await send_arena_notification(
+                callback.bot,
+                user_id,
+                ArenaNotification.CANCELLED,
+                match_id=match["id"],
+                detail="Locked EFC balansga qaytarildi.",
+            )
 
     await callback.answer()
