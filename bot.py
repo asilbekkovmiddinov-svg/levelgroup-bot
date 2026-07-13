@@ -3,7 +3,6 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import BOT_TOKEN
 
@@ -28,6 +27,7 @@ from services.match_api import (
     get_expired_ready_matches,
     start_ready_check,
 )
+from services.arena_notifications import ArenaNotification, send_arena_notification
 
 
 bot = Bot(
@@ -54,19 +54,6 @@ dp.include_router(chat_id_router)
 dp.include_router(admin_orders_router)
 dp.include_router(match_router)
 dp.include_router(admin_match_router)
-
-
-def ready_keyboard(match_id: int):
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Men tayyorman",
-                    callback_data=f"arena_ready:{match_id}",
-                )
-            ]
-        ]
-    )
 
 
 async def p2p_timeout_worker():
@@ -119,32 +106,25 @@ async def arena_ready_start_worker():
                 try:
                     updated_match = await start_ready_check(match["id"])
 
-                    text = (
-                        "🎮 <b>1vs1 Arena match boshlandi!</b>\n\n"
-                        f"🆔 Match ID: <code>{updated_match['id']}</code>\n"
-                        f"💰 EFC: <b>{updated_match['efc_amount']}</b>\n\n"
-                        "5 daqiqa ichida <b>Men tayyorman</b> tugmasini bosing."
-                    )
-
                     for user_id in [
                         updated_match["creator_telegram_id"],
                         updated_match["opponent_telegram_id"],
                     ]:
                         if user_id:
-                            try:
-                                await bot.send_message(
-                                    chat_id=user_id,
-                                    text=text,
-                                    reply_markup=ready_keyboard(updated_match["id"]),
-                                )
-                            except Exception:
-                                pass
+                            await send_arena_notification(
+                                bot,
+                                user_id,
+                                ArenaNotification.READY_REQUIRED,
+                                match_id=updated_match["id"],
+                                amount=updated_match["efc_amount"],
+                                detail="Tayyorlikni 5 daqiqa ichida MiniApp’da tasdiqlang.",
+                            )
 
-                except Exception as error:
-                    print(f"Arena ready start item error: {error}")
+                except Exception:
+                    print("Arena ready start item failed")
 
-        except Exception as error:
-            print(f"Arena ready start worker error: {error}")
+        except Exception:
+            print("Arena ready start worker failed")
 
         await asyncio.sleep(10)
 
@@ -163,51 +143,37 @@ async def arena_ready_finish_worker():
 
                     status = updated_match["status"]
 
-                    if status == "WAITING_ROOM_CODE":
-                        text = (
-                            "✅ Ikkala o‘yinchi ham tayyor!\n\n"
-                            f"🆔 Match ID: <code>{updated_match['id']}</code>\n\n"
-                            "Endi Room Code yozish mumkin."
-                        )
-                    elif status == "TECHNICAL_WIN":
-                        text = (
-                            "⚠️ Match texnik g‘alaba holatiga o‘tdi.\n\n"
-                            f"🆔 Match ID: <code>{updated_match['id']}</code>\n"
-                            f"🏆 Texnik g‘olib: <code>{updated_match['winner_telegram_id']}</code>\n\n"
-                            "Admin tasdiqlagandan keyin mukofot beriladi."
-                        )
+                    if status == "ROOM_READY":
+                        notification = ArenaNotification.ROOM_CODE_READY
+                        detail = "Ikkala o‘yinchi ham tayyor. Creator Room Code kiritishi mumkin."
+                    elif status == "TECHNICAL_REVIEW":
+                        notification = ArenaNotification.TECHNICAL_REVIEW
+                        detail = "Admin texnik holatni ko‘rib chiqadi."
                     elif status == "CANCELLED":
-                        text = (
-                            "❌ Match bekor qilindi.\n\n"
-                            f"🆔 Match ID: <code>{updated_match['id']}</code>\n"
-                            "Ikkala tomon ham tayyor bosmadi.\n\n"
-                            "Locked EFC balansga qaytarildi."
-                        )
+                        notification = ArenaNotification.CANCELLED
+                        detail = "Tayyorlik tasdiqlanmadi. Locked EFC balansga qaytarildi."
                     else:
-                        text = (
-                            "ℹ️ Match holati yangilandi.\n\n"
-                            f"🆔 Match ID: <code>{updated_match['id']}</code>\n"
-                            f"📌 Status: <b>{status}</b>"
-                        )
+                        notification = ArenaNotification.READY_EXPIRED
+                        detail = "Match holati yangilandi."
 
                     for user_id in [
                         updated_match["creator_telegram_id"],
                         updated_match["opponent_telegram_id"],
                     ]:
                         if user_id:
-                            try:
-                                await bot.send_message(
-                                    chat_id=user_id,
-                                    text=text,
-                                )
-                            except Exception:
-                                pass
+                            await send_arena_notification(
+                                bot,
+                                user_id,
+                                notification,
+                                match_id=updated_match["id"],
+                                detail=detail,
+                            )
 
-                except Exception as error:
-                    print(f"Arena ready finish item error: {error}")
+                except Exception:
+                    print("Arena ready finish item failed")
 
-        except Exception as error:
-            print(f"Arena ready finish worker error: {error}")
+        except Exception:
+            print("Arena ready finish worker failed")
 
         await asyncio.sleep(10)
 

@@ -1,6 +1,5 @@
-from datetime import datetime
-
-from aiogram import Router, F
+from aiogram import F, Router
+from aiogram.filters import Filter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -8,569 +7,202 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
-from services.match_api import (
-    accept_match,
-    create_match,
-    create_room_code,
-    get_leaderboard,
-    get_match,
-    get_match_guide,
-    get_open_matches,
-    get_user_matches,
-    set_player_ready,
-    upload_result_screenshot,
+from services.arena_evidence_state import (
+    ArenaEvidenceSession,
+    DuplicateEvidenceError,
+    evidence_store,
 )
+from services.arena_links import ArenaMiniAppConfigError, build_arena_miniapp_url
+from services.arena_notifications import ArenaNotification, send_arena_notification
+from services.match_api import ArenaApiError, upload_internal_evidence
+
 
 router = Router()
 
 
-class MatchCreateState(StatesGroup):
-    efc_amount = State()
-    scheduled_at = State()
+class ArenaEvidenceState(StatesGroup):
+    waiting_media = State()
 
 
-class MatchRoomCodeState(StatesGroup):
-    room_code = State()
+class PendingArenaEvidence(Filter):
+    async def __call__(self, message: Message) -> bool:
+        return bool(message.from_user and evidence_store.get(message.from_user.id))
 
 
-class MatchScreenshotState(StatesGroup):
-    screenshot = State()
-
-
-def arena_menu_keyboard():
+def arena_miniapp_keyboard(
+    *, action: str = "open", match_id: int | None = None
+) -> InlineKeyboardMarkup:
+    url = build_arena_miniapp_url(action=action, match_id=match_id)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎮 Match yaratish",
-                    callback_data="arena_create",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📋 Ochiq matchlar",
-                    callback_data="arena_open",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🕹 Mening matchlarim",
-                    callback_data="arena_my_matches",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🏆 Match reytinglari",
-                    callback_data="arena_ratings",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📘 1vs1 qo‘llanma",
-                    callback_data="arena_guide",
-                )
-            ],
-        ]
-    )
-
-
-def back_to_arena_keyboard():
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Arena menyu",
-                    callback_data="arena_menu",
+                    text="🎮 Arena MiniApp’ni ochish",
+                    web_app=WebAppInfo(url=url),
                 )
             ]
         ]
     )
 
 
-def match_action_keyboard(match_id: int, status: str):
-    buttons = []
+def _callback_target(data: str) -> tuple[str, int | None]:
+    action = data.removeprefix("arena_").split(":", 1)[0] or "open"
+    match_id = None
+    if ":" in data:
+        raw_match_id = data.rsplit(":", 1)[-1]
+        if raw_match_id.isdigit():
+            match_id = int(raw_match_id)
+    return action, match_id
 
-    if status == "WAITING_PLAYER":
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="✅ Matchni qabul qilish",
-                    callback_data=f"arena_accept:{match_id}",
-                )
-            ]
-        )
 
-    if status == "READY_CHECK":
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="✅ Men tayyorman",
-                    callback_data=f"arena_ready:{match_id}",
-                )
-            ]
-        )
+def _evidence_error(error: Exception) -> str:
+    if isinstance(error, DuplicateEvidenceError):
+        return "Bu evidence allaqachon qabul qilingan."
+    if not isinstance(error, ArenaApiError):
+        return "Evidence yuborishda xavfsiz ichki xatolik yuz berdi."
+    if error.status == 409:
+        return "Evidence avval yuborilgan yoki match holati o‘zgargan."
+    if error.status in {401, 403}:
+        return "Evidence yuborishga ruxsat berilmadi. Administratorga xabar bering."
+    if error.status == 404:
+        return "Arena match topilmadi."
+    if error.status == 422:
+        return "Evidence ma’lumoti noto‘g‘ri formatda."
+    if error.status is not None and error.status >= 500:
+        return "Arena serverida vaqtinchalik xatolik. Qayta urinib ko‘ring."
+    return "Evidence qabul qilinmadi. Match holatini tekshiring."
 
-    if status == "WAITING_ROOM_CODE":
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="🔐 Room Code yozish",
-                    callback_data=f"arena_room_code:{match_id}",
-                )
-            ]
-        )
 
-    if status in ["ROOM_CREATED", "MATCH_STARTED"]:
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="📸 Natija screenshot yuborish",
-                    callback_data=f"arena_screenshot:{match_id}",
-                )
-            ]
-        )
-
-    buttons.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ Arena menyu",
-                callback_data="arena_menu",
+def _progress_text(session: ArenaEvidenceSession, accepted: str | None = None) -> str:
+    lines = []
+    if accepted == "screenshot":
+        lines.append("✅ <b>Screenshot qabul qilindi.</b>")
+    elif accepted == "video":
+        lines.append("✅ <b>Video qabul qilindi.</b>")
+    if session.complete:
+        lines.extend(("", "✅ <b>Evidence to‘liq qabul qilindi.</b>"))
+    else:
+        missing = "video" if session.screenshot_file_id else "screenshot"
+        lines.extend(
+            (
+                "",
+                "⏳ Yana bitta evidence qoldi.",
+                f"Endi <b>{missing}</b> yuboring.",
             )
-        ]
+        )
+    return "\n".join(lines)
+
+
+async def _send_redirect(target, *, action="open", match_id=None, edit=False):
+    text = (
+        "🎮 <b>Arena amallari MiniApp’da bajariladi.</b>\n\n"
+        "Match yaratish, qo‘shilish, tayyorlik va Room Code "
+        "xavfsiz Telegram tasdiqlashi bilan MiniApp orqali yuboriladi."
     )
+    try:
+        markup = arena_miniapp_keyboard(action=action, match_id=match_id)
+    except ArenaMiniAppConfigError:
+        text = "❌ Arena MiniApp manzili hozircha sozlanmagan. Administratorga xabar bering."
+        markup = None
+    if edit:
+        await target.edit_text(text, reply_markup=markup)
+    else:
+        await target.answer(text, reply_markup=markup)
 
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-
-def format_match(match: dict) -> str:
-    opponent = match.get("opponent_telegram_id") or "hali yo‘q"
-    room_code = match.get("room_code") or "hali yo‘q"
-
-    return (
-        f"🎮 <b>1vs1 Arena Match</b>\n\n"
-        f"🆔 Match ID: <code>{match['id']}</code>\n"
-        f"👤 Yaratuvchi: <code>{match['creator_telegram_id']}</code>\n"
-        f"👥 Raqib: <code>{opponent}</code>\n"
-        f"💰 Tikilgan EFC: <b>{match['efc_amount']}</b>\n"
-        f"🏆 G‘olib mukofoti: <b>{match['winner_reward']}</b>\n"
-        f"📌 Status: <b>{match['status']}</b>\n"
-        f"🕒 Boshlanish vaqti: <code>{match['scheduled_at']}</code>\n"
-        f"🔐 Room Code: <code>{room_code}</code>"
+async def _start_evidence(callback: CallbackQuery, state: FSMContext, match_id: int):
+    session = evidence_store.start(callback.from_user.id, match_id)
+    await state.set_state(ArenaEvidenceState.waiting_media)
+    await state.update_data(match_id=match_id)
+    await callback.message.edit_text(
+        "📎 <b>Match evidence yuboring.</b>\n\n"
+        "Screenshot va videoni istalgan tartibda, alohida xabar qilib yuboring.\n\n"
+        + _progress_text(session)
     )
+    await callback.answer()
+
+
+async def _handle_evidence(message: Message, state: FSMContext):
+    session = evidence_store.get(message.from_user.id)
+    if not session:
+        await state.clear()
+        return
+    if message.photo:
+        media_type = "screenshot"
+        file_id = message.photo[-1].file_id
+        api_fields = {"screenshot_file_id": file_id}
+    elif message.video:
+        media_type = "video"
+        file_id = message.video.file_id
+        api_fields = {"video_file_id": file_id}
+    else:
+        await message.answer("❌ Screenshot rasm yoki video yuboring.")
+        return
+    if (
+        media_type == "screenshot" and session.screenshot_file_id
+    ) or (media_type == "video" and session.video_file_id):
+        await message.answer("⚠️ Bu evidence turi allaqachon qabul qilingan.")
+        return
+    try:
+        await upload_internal_evidence(
+            match_id=session.match_id,
+            telegram_id=message.from_user.id,
+            **api_fields,
+        )
+        session = evidence_store.mark_accepted(
+            message.from_user.id, media_type=media_type, file_id=file_id
+        )
+    except Exception as error:
+        await message.answer(f"❌ {_evidence_error(error)}")
+        return
+    await message.answer(_progress_text(session, accepted=media_type))
+    if session.complete:
+        evidence_store.clear(message.from_user.id)
+        await state.clear()
+        await send_arena_notification(
+            message.bot,
+            message.from_user.id,
+            ArenaNotification.ADMIN_REVIEW,
+            match_id=session.match_id,
+            detail="Evidence to‘liq qabul qilindi. Admin natijani tekshiradi.",
+        )
 
 
 @router.message(F.text.in_(["🎮 1vs1 Arena", "1vs1 Arena", "/arena"]))
 async def arena_menu_message(message: Message):
-    await message.answer(
-        "🎮 <b>1vs1 Arena</b>\n\n"
-        "Bu yerda EFC tikib boshqa foydalanuvchi bilan 1vs1 match o‘ynaysiz.",
-        reply_markup=arena_menu_keyboard(),
-    )
+    await _send_redirect(message)
 
 
-@router.callback_query(F.data == "arena_menu")
-async def arena_menu_callback(callback: CallbackQuery):
-    await callback.message.edit_text(
-        "🎮 <b>1vs1 Arena</b>\n\n"
-        "Kerakli bo‘limni tanlang.",
-        reply_markup=arena_menu_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "arena_create")
-async def arena_create_start(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await state.set_state(MatchCreateState.efc_amount)
-
-    await callback.message.edit_text(
-        "💰 Match uchun EFC miqdorini yozing.\n\n"
-        "Masalan: <code>100</code>",
-        reply_markup=back_to_arena_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.message(MatchCreateState.efc_amount)
-async def arena_create_amount(message: Message, state: FSMContext):
-    try:
-        efc_amount = float(message.text.replace(",", "."))
-    except ValueError:
-        await message.answer("❌ EFC miqdorini faqat raqam bilan yozing.")
+@router.callback_query(F.data.startswith("arena_evidence:"))
+async def arena_evidence_start(callback: CallbackQuery, state: FSMContext):
+    raw_match_id = (callback.data or "").rsplit(":", 1)[-1]
+    if not raw_match_id.isdigit():
+        await callback.answer("Match ID noto‘g‘ri.", show_alert=True)
         return
+    await _start_evidence(callback, state, int(raw_match_id))
 
-    if efc_amount <= 0:
-        await message.answer("❌ EFC miqdori 0 dan katta bo‘lishi kerak.")
-        return
 
-    await state.update_data(efc_amount=efc_amount)
-    await state.set_state(MatchCreateState.scheduled_at)
+@router.message(ArenaEvidenceState.waiting_media, F.photo | F.video)
+async def arena_evidence_media(message: Message, state: FSMContext):
+    await _handle_evidence(message, state)
 
-    await message.answer(
-        "🕒 Match boshlanish vaqtini yozing.\n\n"
-        "Format:\n"
-        "<code>2026-07-07 21:30</code>\n\n"
-        "Vaqtni shu formatda yuboring."
-    )
 
+@router.message(PendingArenaEvidence(), F.photo | F.video)
+async def arena_evidence_recovery(message: Message, state: FSMContext):
+    await state.set_state(ArenaEvidenceState.waiting_media)
+    await _handle_evidence(message, state)
 
-@router.message(MatchCreateState.scheduled_at)
-async def arena_create_time(message: Message, state: FSMContext):
-    try:
-        scheduled_at = datetime.strptime(message.text.strip(), "%Y-%m-%d %H:%M")
-    except ValueError:
-        await message.answer(
-            "❌ Vaqt formati xato.\n\n"
-            "To‘g‘ri format:\n"
-            "<code>2026-07-07 21:30</code>"
-        )
-        return
 
-    data = await state.get_data()
-    efc_amount = data["efc_amount"]
+@router.message(ArenaEvidenceState.waiting_media)
+async def arena_evidence_wrong_media(message: Message):
+    await message.answer("❌ Screenshot rasm yoki video yuboring.")
 
-    try:
-        match = await create_match(
-            creator_telegram_id=message.from_user.id,
-            efc_amount=efc_amount,
-            scheduled_at=scheduled_at.isoformat(),
-        )
-    except ValueError as error:
-        await message.answer(f"❌ {error}")
-        return
 
-    await state.clear()
-
-    await message.answer(
-        "✅ Match e’loni yaratildi!\n\n"
-        f"{format_match(match)}",
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-  )
-
-
-@router.callback_query(F.data == "arena_open")
-async def arena_open_matches(callback: CallbackQuery):
-    try:
-        data = await get_open_matches()
-        matches = data.get("matches", [])
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    if not matches:
-        await callback.message.edit_text(
-            "📋 Hozircha ochiq matchlar yo‘q.",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    text = "📋 <b>Ochiq matchlar</b>\n\n"
-    keyboard = []
-
-    for match in matches[:10]:
-        text += (
-            f"🆔 <code>{match['id']}</code> | "
-            f"💰 {match['efc_amount']} EFC | "
-            f"🕒 {match['scheduled_at']}\n"
-        )
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"✅ Qabul qilish #{match['id']}",
-                    callback_data=f"arena_accept:{match['id']}",
-                )
-            ]
-        )
-
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ Arena menyu",
-                callback_data="arena_menu",
-            )
-        ]
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("arena_accept:"))
-async def arena_accept_match(callback: CallbackQuery):
-    match_id = int(callback.data.split(":")[1])
-
-    try:
-        match = await accept_match(
-            match_id=match_id,
-            opponent_telegram_id=callback.from_user.id,
-        )
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    await callback.message.edit_text(
-        "✅ Match qabul qilindi!\n\n"
-        f"{format_match(match)}",
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "arena_my_matches")
-async def arena_my_matches(callback: CallbackQuery):
-    try:
-        data = await get_user_matches(callback.from_user.id)
-        matches = data.get("matches", [])
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    if not matches:
-        await callback.message.edit_text(
-            "🕹 Sizda hali matchlar yo‘q.",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    text = "🕹 <b>Mening matchlarim</b>\n\n"
-    keyboard = []
-
-    for match in matches[:10]:
-        text += (
-            f"🆔 <code>{match['id']}</code> | "
-            f"💰 {match['efc_amount']} EFC | "
-            f"📌 {match['status']}\n"
-        )
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"👁 Match #{match['id']}",
-                    callback_data=f"arena_view:{match['id']}",
-                )
-            ]
-        )
-
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ Arena menyu",
-                callback_data="arena_menu",
-            )
-        ]
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("arena_view:"))
-async def arena_view_match(callback: CallbackQuery):
-    match_id = int(callback.data.split(":")[1])
-
-    try:
-        match = await get_match(match_id)
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    await callback.message.edit_text(
-        format_match(match),
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("arena_ready:"))
-async def arena_ready(callback: CallbackQuery):
-    match_id = int(callback.data.split(":")[1])
-
-    try:
-        match = await set_player_ready(
-            match_id=match_id,
-            telegram_id=callback.from_user.id,
-        )
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    await callback.message.edit_text(
-        "✅ Tayyor holatingiz qabul qilindi!\n\n"
-        f"{format_match(match)}",
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("arena_room_code:"))
-async def arena_room_code_start(callback: CallbackQuery, state: FSMContext):
-    match_id = int(callback.data.split(":")[1])
-
-    await state.clear()
-    await state.set_state(MatchRoomCodeState.room_code)
-    await state.update_data(match_id=match_id)
-
-    await callback.message.edit_text(
-        "🔐 Room Code yozing.\n\n"
-        "Eslatma: Room Code faqat bir marta yoziladi, keyin o‘zgartirib bo‘lmaydi.",
-        reply_markup=back_to_arena_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.message(MatchRoomCodeState.room_code)
-async def arena_room_code_save(message: Message, state: FSMContext):
-    data = await state.get_data()
-    match_id = data["match_id"]
-
-    try:
-        match = await create_room_code(
-            match_id=match_id,
-            telegram_id=message.from_user.id,
-            room_code=message.text,
-        )
-    except ValueError as error:
-        await message.answer(f"❌ {error}")
-        return
-
-    await state.clear()
-
-    await message.answer(
-        "✅ Room Code saqlandi!\n\n"
-        f"{format_match(match)}",
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-    )
-
-
-@router.callback_query(F.data.startswith("arena_screenshot:"))
-async def arena_screenshot_start(callback: CallbackQuery, state: FSMContext):
-    match_id = int(callback.data.split(":")[1])
-
-    await state.clear()
-    await state.set_state(MatchScreenshotState.screenshot)
-    await state.update_data(match_id=match_id)
-
-    await callback.message.edit_text(
-        "📸 O‘yin natijasi screenshotini yuboring.\n\n"
-        "Faqat rasm yuboring.",
-        reply_markup=back_to_arena_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.message(MatchScreenshotState.screenshot, F.photo)
-async def arena_screenshot_save(message: Message, state: FSMContext):
-    data = await state.get_data()
-    match_id = data["match_id"]
-
-    photo = message.photo[-1]
-    screenshot_file_id = photo.file_id
-
-    try:
-        match = await upload_result_screenshot(
-            match_id=match_id,
-            telegram_id=message.from_user.id,
-            screenshot_file_id=screenshot_file_id,
-        )
-    except ValueError as error:
-        await message.answer(f"❌ {error}")
-        return
-
-    await state.clear()
-
-    await message.answer(
-        "✅ Screenshot qabul qilindi.\n\n"
-        "Admin natijani tekshiradi va matchni yakunlaydi.",
-        reply_markup=match_action_keyboard(match["id"], match["status"]),
-    )
-
-
-@router.message(MatchScreenshotState.screenshot)
-async def arena_screenshot_wrong(message: Message):
-    await message.answer("❌ Iltimos, faqat screenshot rasm yuboring.")
-
-
-@router.callback_query(F.data == "arena_ratings")
-async def arena_ratings(callback: CallbackQuery):
-    try:
-        data = await get_leaderboard(period="all", limit=10)
-        users = data.get("users", [])
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    if not users:
-        await callback.message.edit_text(
-            "🏆 Hozircha reyting mavjud emas.",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    text = "🏆 <b>Match reytinglari</b>\n\n"
-
-    for index, user in enumerate(users, start=1):
-        text += (
-            f"{index}. <code>{user['telegram_id']}</code>\n"
-            f"⭐ Rating: <b>{user['rating']}</b>\n"
-            f"✅ G‘alaba: {user['wins']} | ❌ Mag‘lubiyat: {user['losses']}\n"
-            f"🔥 Streak: {user['win_streak']} | 🏆 Best: {user['best_win_streak']}\n\n"
-        )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=back_to_arena_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "arena_guide")
-async def arena_guide(callback: CallbackQuery):
-    try:
-        guide = await get_match_guide()
-    except ValueError as error:
-        await callback.message.edit_text(
-            f"❌ {error}",
-            reply_markup=back_to_arena_keyboard(),
-        )
-        await callback.answer()
-        return
-
-    await callback.message.edit_text(
-        f"📘 <b>{guide['title']}</b>\n\n{guide['text']}",
-        reply_markup=back_to_arena_keyboard(),
-    )
+@router.callback_query(F.data.startswith("arena_"))
+async def redirect_legacy_arena_callback(callback: CallbackQuery):
+    action, match_id = _callback_target(callback.data or "arena_open")
+    await _send_redirect(callback.message, action=action, match_id=match_id, edit=True)
     await callback.answer()
