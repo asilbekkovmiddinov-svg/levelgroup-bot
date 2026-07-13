@@ -258,6 +258,25 @@ async def upload_result_screenshot(
     )
 
 
+async def upload_internal_evidence(
+    match_id,
+    telegram_id,
+    screenshot_file_id=None,
+    video_file_id=None,
+):
+    payload = {
+        "match_id": match_id,
+        "telegram_id": telegram_id,
+    }
+    if screenshot_file_id:
+        payload["screenshot_file_id"] = screenshot_file_id
+    if video_file_id:
+        payload["video_file_id"] = video_file_id
+    return await client.request(
+        "POST", "/matches/internal/evidence", internal=True, json=payload
+    )
+
+
 async def cancel_match(
     match_id, init_data=None, cancel_reason=None, admin_telegram_id=None
 ):

@@ -84,6 +84,20 @@ def format_arena_notification(
 def arena_notification_keyboard(
     notification: ArenaNotification, *, match_id: int | None = None
 ) -> InlineKeyboardMarkup | None:
+    if notification in {
+        ArenaNotification.SCREENSHOT_REQUIRED,
+        ArenaNotification.VIDEO_REQUIRED,
+    } and match_id is not None:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📎 Evidence yuborish",
+                        callback_data=f"arena_evidence:{match_id}",
+                    )
+                ]
+            ]
+        )
     action = _MINIAPP_ACTIONS.get(notification)
     if action is None:
         return None

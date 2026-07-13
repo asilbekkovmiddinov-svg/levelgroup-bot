@@ -38,16 +38,19 @@ class ArenaRoutingTests(unittest.TestCase):
     def test_legacy_user_handler_does_not_import_or_call_arena_api(self):
         source = (ROOT / "handlers" / "match.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
-        imported_modules = {
-            node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
-        }
+        match_api_imports = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "services.match_api":
+                match_api_imports.update(alias.name for alias in node.names)
         called_names = {
             node.func.id
             for node in ast.walk(tree)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         }
 
-        self.assertNotIn("services.match_api", imported_modules)
+        self.assertEqual(
+            match_api_imports, {"ArenaApiError", "upload_internal_evidence"}
+        )
         for forbidden in {
             "create_match",
             "accept_match",

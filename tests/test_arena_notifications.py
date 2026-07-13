@@ -20,9 +20,10 @@ if "aiogram" not in sys.modules:
             self.url = url
 
     class InlineKeyboardButton:
-        def __init__(self, *, text, web_app):
+        def __init__(self, *, text, web_app=None, callback_data=None):
             self.text = text
             self.web_app = web_app
+            self.callback_data = callback_data
 
     class InlineKeyboardMarkup:
         def __init__(self, *, inline_keyboard):
@@ -85,6 +86,14 @@ class ArenaNotificationTests(unittest.TestCase):
             markup.inline_keyboard[0][0].web_app.url,
             "https://miniapp.example/?section=arena",
         )
+
+    def test_evidence_notification_has_bot_fsm_button(self):
+        markup = arena_notification_keyboard(
+            ArenaNotification.SCREENSHOT_REQUIRED, match_id=42
+        )
+        button = markup.inline_keyboard[0][0]
+        self.assertEqual(button.callback_data, "arena_evidence:42")
+        self.assertIsNone(button.web_app)
 
     def test_delivery_success_uses_formatted_message(self):
         bot = FakeBot()
