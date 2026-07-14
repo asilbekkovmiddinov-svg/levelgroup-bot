@@ -58,11 +58,14 @@ async def notify_user(bot, telegram_id, text):
 
 @router.callback_query(F.data.startswith("claim_deposit_"))
 async def claim_deposit_handler(callback: CallbackQuery):
-    deposit_id = int(callback.data.replace("claim_deposit_", ""))
+    callback_parts = callback.data.replace("claim_deposit_", "").split("_", 1)
+    deposit_id = int(callback_parts[0])
+    receipt_revision = int(callback_parts[1]) if len(callback_parts) == 2 else None
 
     result = await claim_deposit(
         deposit_id=deposit_id,
         admin_id=callback.from_user.id,
+        receipt_revision=receipt_revision,
     )
 
     if result.get("message") == "Deposit already claimed":

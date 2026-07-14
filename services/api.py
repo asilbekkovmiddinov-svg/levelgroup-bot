@@ -82,7 +82,8 @@ async def create_order(telegram_id: int, product_id: int):
 async def create_deposit(telegram_id: int, amount: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{BACKEND_URL}/deposit/create",
+            f"{BACKEND_URL}/internal/deposit/create",
+            headers=internal_headers(),
             json={
                 "telegram_id": telegram_id,
                 "amount": amount,
@@ -100,7 +101,8 @@ async def create_withdraw(
 ):
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{BACKEND_URL}/withdraw/create",
+            f"{BACKEND_URL}/internal/withdraw/create",
+            headers=internal_headers(),
             json={
                 "telegram_id": telegram_id,
                 "amount": amount,
@@ -112,12 +114,15 @@ async def create_withdraw(
             return await safe_json(response)
 
 
-async def claim_deposit(deposit_id: int, admin_id: int):
+async def claim_deposit(deposit_id: int, admin_id: int, receipt_revision: int | None = None):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/deposit/{deposit_id}/claim",
             headers=internal_headers(),
-            json={"admin_id": admin_id},
+            json={
+                "admin_id": admin_id,
+                **({"receipt_revision": receipt_revision} if receipt_revision is not None else {}),
+            },
         ) as response:
             return await safe_json(response)
 
