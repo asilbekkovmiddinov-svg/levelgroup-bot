@@ -247,6 +247,20 @@ async def reject_deposit_handler(callback: CallbackQuery):
         ),
     )
 
+    await callback.message.bot.send_message(
+        chat_id=COMPLETED_ORDERS_CHANNEL_ID,
+        text=(
+            "❌ DEPOZIT RAD ETILDI\n\n"
+            f"🆔 Buyurtma: #{deposit_id}\n"
+            f"👤 Buyurtmachi: {username}\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"📌 Sabab: {reason}\n"
+            f"👨‍💼 Admin: {admin_name}\n"
+            f"⌛️ Ko‘rib chiqish vaqti: {processing_time}\n\n"
+            "🔥 LEVEL_GROUP"
+        ),
+    )
+
     await callback.answer("❌ Depozit rad etildi.")
 @router.callback_query(F.data.startswith("claim_withdraw_"))
 async def claim_withdraw_handler(callback: CallbackQuery):
@@ -472,6 +486,22 @@ async def reject_withdraw_handler(callback: CallbackQuery):
             f"📌 Sabab: {reject_reason}\n"
             f"⏳ Ko‘rib chiqish vaqti: {processing_time}\n"
             f"📩 Mijozga xabar: {'Yuborildi' if user_notified else 'Yuborilmadi'}"
+        ),
+    )
+
+    await callback.message.bot.send_message(
+        chat_id=COMPLETED_ORDERS_CHANNEL_ID,
+        text=(
+            "❌ PUL YECHISH RAD ETILDI\n\n"
+            f"🆔 Buyurtma: #{withdraw_id}\n"
+            f"👤 Buyurtmachi: {username}\n"
+            f"💵 Summa: {amount:,} so‘m\n"
+            f"🏦 Bank: {bank_name}\n"
+            f"💳 Karta: {card_number}\n"
+            f"📌 Sabab: {reject_reason}\n"
+            f"👨‍💼 Admin: {admin_name}\n"
+            f"⏳ Ko‘rib chiqish vaqti: {processing_time}\n\n"
+            "🔥 LEVEL_GROUP"
         ),
     )
 
