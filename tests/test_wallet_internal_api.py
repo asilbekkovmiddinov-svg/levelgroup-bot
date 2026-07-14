@@ -83,6 +83,29 @@ class WalletInternalApiTests(unittest.IsolatedAsyncioTestCase):
             "last_name": "Valiyev",
         })
 
+    async def test_wallet_admin_actions_use_internal_key(self):
+        actions = (
+            (api.claim_deposit, (7, 42)),
+            (api.approve_deposit, (7, 42)),
+            (api.reject_deposit, (7, 42)),
+            (api.claim_withdraw, (8, 42)),
+            (api.approve_withdraw, (8, 42)),
+            (api.reject_withdraw, (8, 42)),
+        )
+
+        for action, args in actions:
+            FakeSession.calls = []
+            await action(*args)
+            self.assertEqual(
+                FakeSession.calls[0][2]["headers"],
+                {"X-Internal-Api-Key": "internal-test-key"},
+            )
+
+    async def test_safe_json_exposes_backend_detail_as_message(self):
+        result = await api.safe_json(FakeResponse({"detail": "Deposit must be claimed"}, 409))
+
+        self.assertEqual(result["message"], "Deposit must be claimed")
+
 
 if __name__ == "__main__":
     unittest.main()
