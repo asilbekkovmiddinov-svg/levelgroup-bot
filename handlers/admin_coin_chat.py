@@ -2,10 +2,10 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
 
 from config import ADMIN_CHAT_ID
-from services.api import coin_chat_action, get_active_coin_chats, get_coin_chat, mark_coin_chat_read, send_coin_chat_message
+from services.api import coin_chat_action, get_active_coin_chats, get_coin_chat, mark_coin_chat_read, open_coin_credentials, send_coin_chat_message
 
 router = Router()
 
@@ -36,6 +36,7 @@ def keyboard(kind, order_id):
          InlineKeyboardButton(text="Coin topshirildi",callback_data=f"{prefix}:COMPLETE")],
         [InlineKeyboardButton(text="Xabar yozish",callback_data=f"{prefix}:WRITE"),
          InlineKeyboardButton(text="Rad etish",callback_data=f"{prefix}:REJECT")],
+        [InlineKeyboardButton(text="🔐 Credentialni ochish",callback_data=f"{prefix}:CREDENTIALS")],
     ])
 
 
@@ -68,6 +69,18 @@ async def quick(callback: CallbackQuery, state: FSMContext):
     if action=="WRITE":
         await state.update_data(kind=kind,order_id=order_id); await state.set_state(CoinChatState.message)
         await callback.message.answer("Operator xabarini yozing:"); return await callback.answer()
+    if action=="CREDENTIALS":
+        result=await open_coin_credentials(kind,order_id,callback.from_user.id)
+        if not result.get("success"): return await callback.answer(result.get("detail") or "Credential mavjud emas",show_alert=True)
+        link=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔐 Bir martalik credential oynasi",web_app=WebAppInfo(url=result["view_url"]))
+        ]])
+        await callback.message.answer(
+            "Credential serverdagi bir martalik, 60 soniyalik oynada ochiladi.",
+            reply_markup=link,
+            protect_content=True,
+        )
+        return await callback.answer("Xavfsiz havola tayyor")
     result=await coin_chat_action(kind,order_id,callback.from_user.id,action)
     if not result.get("success"): return await callback.answer(result.get("detail") or result.get("message") or "Xatolik",show_alert=True)
     if action in QUICK: await send_coin_chat_message(kind,order_id,callback.from_user.id,QUICK[action])
