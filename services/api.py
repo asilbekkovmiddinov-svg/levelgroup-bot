@@ -499,7 +499,10 @@ async def coin_chat_action(order_type: str, order_id: int, admin_id: int, action
 async def open_coin_credentials(order_type: str, order_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/credentials",
+            f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/credential-grant",
             headers=internal_headers(), json={"admin_id": admin_id, "session_id": f"telegram:{admin_id}"},
         ) as response:
-            return await safe_json(response)
+            result = await safe_json(response)
+            if response.status == 200 and result.get("view_path"):
+                result["view_url"] = f"{BACKEND_URL.rstrip('/')}{result['view_path']}"
+            return result
