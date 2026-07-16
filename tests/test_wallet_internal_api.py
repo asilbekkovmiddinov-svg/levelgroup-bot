@@ -102,13 +102,19 @@ class WalletInternalApiTests(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_legacy_wallet_create_uses_internal_contract(self):
-        await api.create_deposit(42, 15000)
+        await api.create_deposit(42, 15000, "bot-deposit:42:7")
         await api.create_withdraw(42, 20000, "8600", "Ali", "Bank")
 
         self.assertEqual(FakeSession.calls[0][1], "https://backend.example/internal/deposit/create")
         self.assertEqual(FakeSession.calls[1][1], "https://backend.example/internal/withdraw/create")
-        for _, _, kwargs in FakeSession.calls:
-            self.assertEqual(kwargs["headers"], {"X-Internal-Api-Key": "internal-test-key"})
+        self.assertEqual(FakeSession.calls[0][2]["headers"], {
+            "X-Internal-Api-Key": "internal-test-key",
+            "Idempotency-Key": "bot-deposit:42:7",
+        })
+        self.assertEqual(
+            FakeSession.calls[1][2]["headers"],
+            {"X-Internal-Api-Key": "internal-test-key"},
+        )
 
     async def test_deposit_claim_forwards_receipt_revision(self):
         await api.claim_deposit(7, 42, receipt_revision=3)

@@ -65,7 +65,8 @@ async def deposit_receipt(message: Message, state: FSMContext):
 
     result = await create_deposit(
         telegram_id=message.from_user.id,
-        amount=amount
+        amount=amount,
+        idempotency_key=f"bot-deposit:{message.chat.id}:{message.message_id}",
     )
 
     if result.get("message") != "Deposit request created":
