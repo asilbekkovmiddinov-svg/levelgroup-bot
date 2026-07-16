@@ -8,3 +8,6 @@ def test_admin_coin_chat_exposes_quick_actions_and_fsm():
     assert 'Command("coin_chats")' in source
     assert "CoinChatState.message" in source
     assert "protect_content=True" in source
+    assert 'result["data"]' not in source
+    assert 'result["view_url"]' in source
+    assert "Bir martalik credential oynasi" in source
