@@ -462,3 +462,35 @@ async def reject_wheel_coin_order(
             },
         ) as response:
             return await safe_json(response)
+
+
+async def get_active_coin_chats():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{BACKEND_URL}/coin-order-chat/internal/active", headers=internal_headers()) as response:
+            return await safe_json(response)
+
+
+async def get_coin_chat(order_type: str, order_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/messages", headers=internal_headers()) as response:
+            return await safe_json(response)
+
+
+async def mark_coin_chat_read(order_type: str, order_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/read", headers=internal_headers()) as response:
+            return await safe_json(response)
+
+
+async def send_coin_chat_message(order_type: str, order_id: int, admin_id: int, message: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/messages",
+            headers=internal_headers(), json={"admin_id": admin_id, "message": message}) as response:
+            return await safe_json(response)
+
+
+async def coin_chat_action(order_type: str, order_id: int, admin_id: int, action: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/action",
+            headers=internal_headers(), json={"admin_id": admin_id, "action": action}) as response:
+            return await safe_json(response)
