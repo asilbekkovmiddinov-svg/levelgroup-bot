@@ -125,6 +125,22 @@ class WalletInternalApiTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result["message"], "Deposit must be claimed")
 
+    async def test_coin_chat_admin_requests_use_internal_contract(self):
+        await api.get_active_coin_chats()
+        await api.get_coin_chat("SHOP", 7)
+        await api.mark_coin_chat_read("SHOP", 7)
+        await api.send_coin_chat_message("SHOP", 7, 42, "Kod yuborildi")
+        await api.coin_chat_action("SHOP", 7, 42, "REQUEST_CODE")
+        self.assertEqual([call[1] for call in FakeSession.calls], [
+            "https://backend.example/coin-order-chat/internal/active",
+            "https://backend.example/coin-order-chat/internal/SHOP/7/messages",
+            "https://backend.example/coin-order-chat/internal/SHOP/7/read",
+            "https://backend.example/coin-order-chat/internal/SHOP/7/messages",
+            "https://backend.example/coin-order-chat/internal/SHOP/7/action",
+        ])
+        for _, _, kwargs in FakeSession.calls:
+            self.assertEqual(kwargs["headers"], {"X-Internal-Api-Key": "internal-test-key"})
+
 
 if __name__ == "__main__":
     unittest.main()
