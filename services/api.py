@@ -79,11 +79,14 @@ async def create_order(telegram_id: int, product_id: int):
             return await safe_json(response)
 
 
-async def create_deposit(telegram_id: int, amount: int):
+async def create_deposit(telegram_id: int, amount: int, idempotency_key: str):
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/internal/deposit/create",
-            headers=internal_headers(),
+            headers={
+                **internal_headers(),
+                "Idempotency-Key": idempotency_key,
+            },
             json={
                 "telegram_id": telegram_id,
                 "amount": amount,
