@@ -10,7 +10,7 @@ from services.api import coin_chat_action, get_active_coin_chats, get_coin_chat,
 router = Router()
 
 QUICK = {
-    "REQUEST_CODE": "MyKonami emailingizga kod yuborildi. Iltimos, 6 xonali kodni shu yerga yozing.",
+    "OTP_SENT": "Email manzilingizga tasdiqlash kodi yuborildi.",
     "ACCEPT_CODE": "Kod qabul qilindi. Coin xaridi davom etmoqda.",
     "WRONG_CODE": "Kod noto‘g‘ri. Iltimos, kodni tekshirib qayta yuboring.",
     "RESEND_CODE": "Yangi kod yuborildi. Iltimos, yangi 6 xonali kodni yozing.",
@@ -28,7 +28,7 @@ def is_admin(user_id):
 def keyboard(kind, order_id):
     prefix=f"coinchat:{kind}:{order_id}"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Kodni yuboring",callback_data=f"{prefix}:REQUEST_CODE"),
+        [InlineKeyboardButton(text="📩 OTP yuborildi",callback_data=f"{prefix}:OTP_SENT"),
          InlineKeyboardButton(text="Kod qabul qilindi",callback_data=f"{prefix}:ACCEPT_CODE")],
         [InlineKeyboardButton(text="Kod noto‘g‘ri",callback_data=f"{prefix}:WRONG_CODE"),
          InlineKeyboardButton(text="Yangi kod yuboring",callback_data=f"{prefix}:RESEND_CODE")],
@@ -83,7 +83,7 @@ async def quick(callback: CallbackQuery, state: FSMContext):
         return await callback.answer("Xavfsiz havola tayyor")
     result=await coin_chat_action(kind,order_id,callback.from_user.id,action)
     if not result.get("success"): return await callback.answer(result.get("detail") or result.get("message") or "Xatolik",show_alert=True)
-    if action in QUICK: await send_coin_chat_message(kind,order_id,callback.from_user.id,QUICK[action])
+    if action in QUICK and action != "OTP_SENT": await send_coin_chat_message(kind,order_id,callback.from_user.id,QUICK[action])
     await callback.answer("Yangilandi"); await render(callback.message,kind,order_id)
 
 
