@@ -15,7 +15,6 @@ def main_keyboard():
         keyboard=[
             [
                 KeyboardButton(text="💰 Hamyon"),
-                KeyboardButton(text="🛒 Coin sotib olish"),
             ],
             [
                 KeyboardButton(text="🤝 P2P Market"),

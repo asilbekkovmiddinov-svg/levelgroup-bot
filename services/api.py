@@ -29,7 +29,6 @@ async def get_wallet(telegram_id: int):
                 return None
             return await safe_json(response)
 
-
 async def update_user_seen(telegram_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
@@ -54,26 +53,6 @@ async def register_internal_user(
                 "username": username,
                 "first_name": first_name,
                 "last_name": last_name,
-            },
-        ) as response:
-            return await safe_json(response)
-
-
-async def get_products():
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"{BACKEND_URL}/products/active") as response:
-            if response.status != 200:
-                return []
-            return await safe_json(response)
-
-
-async def create_order(telegram_id: int, product_id: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{BACKEND_URL}/orders/create",
-            json={
-                "telegram_id": telegram_id,
-                "product_id": product_id,
             },
         ) as response:
             return await safe_json(response)
@@ -496,13 +475,31 @@ async def coin_chat_action(order_type: str, order_id: int, admin_id: int, action
             return await safe_json(response)
 
 
-async def open_coin_credentials(order_type: str, order_id: int, admin_id: int):
+async def claim_shop_order(order_id: int, admin_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{BACKEND_URL}/coin-order-chat/internal/{order_type}/{order_id}/credential-grant",
-            headers=internal_headers(), json={"admin_id": admin_id, "session_id": f"telegram:{admin_id}"},
+            f"{BACKEND_URL}/orders/{order_id}/claim",
+            headers=internal_headers(),
+            json={"admin_id": admin_id},
         ) as response:
-            result = await safe_json(response)
-            if response.status == 200 and result.get("view_path"):
-                result["view_url"] = f"{BACKEND_URL.rstrip('/')}{result['view_path']}"
-            return result
+            return await safe_json(response)
+
+
+async def complete_shop_order(order_id: int, admin_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/orders/{order_id}/approve",
+            headers=internal_headers(),
+            json={"admin_id": admin_id},
+        ) as response:
+            return await safe_json(response)
+
+
+async def reject_shop_order(order_id: int, admin_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/orders/{order_id}/reject",
+            headers=internal_headers(),
+            json={"admin_id": admin_id, "reason": "Operator rad etdi"},
+        ) as response:
+            return await safe_json(response)

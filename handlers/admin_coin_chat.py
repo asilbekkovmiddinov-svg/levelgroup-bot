@@ -30,18 +30,6 @@ def is_admin(user_id):
 
 def keyboard(kind, order_id, status=None):
     prefix=f"coinchat:{kind}:{order_id}"
-    if kind == "SHOP":
-        if status == "WAITING_OPERATOR":
-            return InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="✅ Qabul qilish",callback_data=f"{prefix}:CLAIM")
-            ]])
-        if status == "CLAIMED":
-            return InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💬 Xabar yozish",callback_data=f"{prefix}:WRITE")],
-                [InlineKeyboardButton(text="✅ Buyurtma bajarildi",callback_data=f"{prefix}:COMPLETE"),
-                 InlineKeyboardButton(text="❌ Buyurtma rad etildi",callback_data=f"{prefix}:REJECT")],
-            ])
-        return None
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📩 OTP yuborildi",callback_data=f"{prefix}:OTP_SENT"),
          InlineKeyboardButton(text="Kod qabul qilindi",callback_data=f"{prefix}:ACCEPT_CODE")],
@@ -110,7 +98,7 @@ async def quick(callback: CallbackQuery, state: FSMContext):
         await callback.bot.send_message(callback.from_user.id,"Operator xabarini yozing:"); return await callback.answer()
     result=await coin_chat_action(kind,order_id,callback.from_user.id,action)
     if not result.get("success"): return await callback.answer(result.get("detail") or result.get("message") or "Xatolik",show_alert=True)
-    if action in {"COMPLETE","REJECT"} and result.get("status") in {"COMPLETED","REJECTED"}:
+    if kind == "WHEEL" and action in {"COMPLETE","REJECT"} and result.get("status") in {"COMPLETED","REJECTED"}:
         await send_terminal_order(callback,kind,order_id,result["status"])
     if action in QUICK and action != "OTP_SENT": await send_coin_chat_message(kind,order_id,callback.from_user.id,QUICK[action])
     await callback.answer("Yangilandi"); await render_private(callback,kind,order_id)
