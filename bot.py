@@ -8,7 +8,6 @@ from config import BOT_TOKEN
 
 from handlers.start import router as start_router
 from handlers.wallet import router as wallet_router
-from handlers.buy import router as buy_router
 from handlers.deposit import router as deposit_router
 from handlers.withdraw import router as withdraw_router
 from handlers.p2p import router as p2p_router
@@ -19,6 +18,7 @@ from handlers.admin_orders import router as admin_orders_router
 from handlers.match import router as match_router
 from handlers.admin_match import router as admin_match_router
 from handlers.admin_coin_chat import router as admin_coin_chat_router
+from handlers.admin_coin_shop import router as admin_coin_shop_router
 
 from middlewares.user_seen import UserSeenMiddleware
 from services.api import check_p2p_timeouts
@@ -45,7 +45,6 @@ dp.callback_query.middleware(UserSeenMiddleware())
 
 dp.include_router(start_router)
 dp.include_router(wallet_router)
-dp.include_router(buy_router)
 dp.include_router(deposit_router)
 dp.include_router(withdraw_router)
 dp.include_router(p2p_router)
@@ -56,6 +55,7 @@ dp.include_router(admin_orders_router)
 dp.include_router(match_router)
 dp.include_router(admin_match_router)
 dp.include_router(admin_coin_chat_router)
+dp.include_router(admin_coin_shop_router)
 
 
 async def p2p_timeout_worker():
