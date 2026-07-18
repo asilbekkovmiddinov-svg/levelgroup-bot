@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
 
-from config import ADMIN_CHAT_ID
+from config import ADMIN_CHAT_ID, ADMIN_USER_IDS
 from services.api import coin_chat_action, get_active_coin_chats, get_coin_chat, mark_coin_chat_read, open_coin_credentials, send_coin_chat_message
 
 router = Router()
@@ -22,7 +22,10 @@ class CoinChatState(StatesGroup):
 
 
 def is_admin(user_id):
-    return bool(ADMIN_CHAT_ID) and int(user_id) == int(ADMIN_CHAT_ID)
+    operator_id = int(user_id)
+    return operator_id in ADMIN_USER_IDS or (
+        bool(ADMIN_CHAT_ID) and operator_id == int(ADMIN_CHAT_ID)
+    )
 
 
 def keyboard(kind, order_id):
