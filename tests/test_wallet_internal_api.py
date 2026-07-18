@@ -127,16 +127,28 @@ class WalletInternalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_coin_chat_admin_requests_use_internal_contract(self):
         await api.get_active_coin_chats()
-        await api.get_coin_chat("SHOP", 7)
-        await api.mark_coin_chat_read("SHOP", 7)
-        await api.send_coin_chat_message("SHOP", 7, 42, "Kod yuborildi")
-        await api.coin_chat_action("SHOP", 7, 42, "REQUEST_CODE")
+        await api.get_coin_chat("WHEEL", 7)
+        await api.mark_coin_chat_read("WHEEL", 7)
+        await api.send_coin_chat_message("WHEEL", 7, 42, "Kod yuborildi")
+        await api.coin_chat_action("WHEEL", 7, 42, "REQUEST_CODE")
         self.assertEqual([call[1] for call in FakeSession.calls], [
             "https://backend.example/coin-order-chat/internal/active",
-            "https://backend.example/coin-order-chat/internal/SHOP/7/messages",
-            "https://backend.example/coin-order-chat/internal/SHOP/7/read",
-            "https://backend.example/coin-order-chat/internal/SHOP/7/messages",
-            "https://backend.example/coin-order-chat/internal/SHOP/7/action",
+            "https://backend.example/coin-order-chat/internal/WHEEL/7/messages",
+            "https://backend.example/coin-order-chat/internal/WHEEL/7/read",
+            "https://backend.example/coin-order-chat/internal/WHEEL/7/messages",
+            "https://backend.example/coin-order-chat/internal/WHEEL/7/action",
+        ])
+        for _, _, kwargs in FakeSession.calls:
+            self.assertEqual(kwargs["headers"], {"X-Internal-Api-Key": "internal-test-key"})
+
+    async def test_coin_shop_admin_requests_use_order_endpoints(self):
+        await api.claim_shop_order(7, 42)
+        await api.complete_shop_order(7, 42)
+        await api.reject_shop_order(8, 42)
+        self.assertEqual([call[1] for call in FakeSession.calls], [
+            "https://backend.example/orders/7/claim",
+            "https://backend.example/orders/7/approve",
+            "https://backend.example/orders/8/reject",
         ])
         for _, _, kwargs in FakeSession.calls:
             self.assertEqual(kwargs["headers"], {"X-Internal-Api-Key": "internal-test-key"})
