@@ -47,6 +47,15 @@ async def render(target, kind, order_id):
     await target.answer(f"💬 {kind} Coin Order #{order_id}\nStatus: {result.get('status','—')}\n\n{transcript}",reply_markup=keyboard(kind,order_id))
 
 
+async def render_private(callback, kind, order_id):
+    result=await get_coin_chat(kind,order_id); messages=result.get("data",[])
+    await mark_coin_chat_read(kind, order_id)
+    transcript="\n\n".join(f"{'👤 User' if x.get('sender')=='USER' else '🛡 Operator'}:\n{x.get('message','')}" for x in messages[-10:]) or "Xabar yo‘q"
+    await callback.bot.send_message(callback.from_user.id,
+        f"💬 {kind} Coin Order #{order_id}\nStatus: {result.get('status','—')}\n\n{transcript}",
+        reply_markup=keyboard(kind,order_id), protect_content=True)
+
+
 @router.message(Command("coin_chats"))
 async def chats(message: Message):
     if not is_admin(message.from_user.id): return
@@ -59,7 +68,7 @@ async def chats(message: Message):
 @router.callback_query(F.data.startswith("coinchatopen:"))
 async def open_chat(callback: CallbackQuery):
     if not is_admin(callback.from_user.id): return await callback.answer("Ruxsat yo‘q",show_alert=True)
-    _,kind,raw_id=callback.data.split(":"); await render(callback.message,kind,int(raw_id)); await callback.answer()
+    _,kind,raw_id=callback.data.split(":"); await render_private(callback,kind,int(raw_id)); await callback.answer("Shaxsiy chatda ochildi")
 
 
 @router.callback_query(F.data.startswith("coinchat:"))
@@ -68,14 +77,14 @@ async def quick(callback: CallbackQuery, state: FSMContext):
     _,kind,raw_id,action=callback.data.split(":"); order_id=int(raw_id)
     if action=="WRITE":
         await state.update_data(kind=kind,order_id=order_id); await state.set_state(CoinChatState.message)
-        await callback.message.answer("Operator xabarini yozing:"); return await callback.answer()
+        await callback.bot.send_message(callback.from_user.id,"Operator xabarini yozing:"); return await callback.answer()
     if action=="CREDENTIALS":
         result=await open_coin_credentials(kind,order_id,callback.from_user.id)
         if not result.get("success"): return await callback.answer(result.get("detail") or "Credential mavjud emas",show_alert=True)
         link=InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="🔐 Bir martalik credential oynasi",web_app=WebAppInfo(url=result["view_url"]))
         ]])
-        await callback.message.answer(
+        await callback.bot.send_message(callback.from_user.id,
             "Credential serverdagi bir martalik, 60 soniyalik oynada ochiladi.",
             reply_markup=link,
             protect_content=True,
@@ -84,7 +93,7 @@ async def quick(callback: CallbackQuery, state: FSMContext):
     result=await coin_chat_action(kind,order_id,callback.from_user.id,action)
     if not result.get("success"): return await callback.answer(result.get("detail") or result.get("message") or "Xatolik",show_alert=True)
     if action in QUICK and action != "OTP_SENT": await send_coin_chat_message(kind,order_id,callback.from_user.id,QUICK[action])
-    await callback.answer("Yangilandi"); await render(callback.message,kind,order_id)
+    await callback.answer("Yangilandi"); await render_private(callback,kind,order_id)
 
 
 @router.message(CoinChatState.message)
