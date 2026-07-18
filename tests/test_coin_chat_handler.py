@@ -15,6 +15,8 @@ def test_admin_coin_chat_exposes_quick_actions_and_fsm():
     assert "callback.bot.send_message(callback.from_user.id" in source
     assert "protect_content=True" in source
     assert "await render(callback.message,kind,int(raw_id))" not in source
+    assert "operator_id in ADMIN_USER_IDS" in source
+    assert "get_chat_member" not in source
     assert "Kodni yuboring" not in source
     assert 'F.data.startswith("coinchatopen:")' in source
     assert 'callback_data=f"coinchatopen:{x[\'order_type\']}:{x[\'order_id\']}"' in source

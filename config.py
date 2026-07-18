@@ -20,6 +20,11 @@ ARENA_EVIDENCE_STATE_DB = os.getenv("ARENA_EVIDENCE_STATE_DB", "levelgroup.db")
 
 NEW_ORDERS_CHANNEL_ID = int(os.getenv("NEW_ORDERS_CHANNEL_ID", "0"))
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
+ADMIN_USER_IDS = {
+    int(value.strip())
+    for value in os.getenv("ADMIN_USER_IDS", "").split(",")
+    if value.strip()
+}
 ADMIN_LOGS_CHANNEL_ID = int(os.getenv("ADMIN_LOGS_CHANNEL_ID", "0"))
 COMPLETED_ORDERS_CHANNEL_ID = int(os.getenv("COMPLETED_ORDERS_CHANNEL_ID", "0"))
 
