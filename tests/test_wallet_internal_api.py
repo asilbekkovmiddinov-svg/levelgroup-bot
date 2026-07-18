@@ -83,6 +83,19 @@ class WalletInternalApiTests(unittest.IsolatedAsyncioTestCase):
             "last_name": "Valiyev",
         })
 
+    async def test_register_forwards_referral_code_only_when_present(self):
+        await api.register_internal_user(
+            42,
+            "ali",
+            "Ali",
+            "Valiyev",
+            referral_code="abc_DEF-123",
+        )
+        self.assertEqual(
+            FakeSession.calls[0][2]["json"]["referral_code"],
+            "abc_DEF-123",
+        )
+
     async def test_wallet_admin_actions_use_internal_key(self):
         actions = (
             (api.claim_deposit, (7, 42)),

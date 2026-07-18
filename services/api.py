@@ -43,17 +43,21 @@ async def register_internal_user(
     username: str | None = None,
     first_name: str | None = None,
     last_name: str | None = None,
+    referral_code: str | None = None,
 ):
+    payload = {
+        "telegram_id": telegram_id,
+        "username": username,
+        "first_name": first_name,
+        "last_name": last_name,
+    }
+    if referral_code:
+        payload["referral_code"] = referral_code
     async with aiohttp.ClientSession() as session:
         async with session.post(
             f"{BACKEND_URL}/internal/users/register",
             headers=internal_headers(),
-            json={
-                "telegram_id": telegram_id,
-                "username": username,
-                "first_name": first_name,
-                "last_name": last_name,
-            },
+            json=payload,
         ) as response:
             return await safe_json(response)
 
