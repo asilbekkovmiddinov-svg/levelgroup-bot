@@ -20,7 +20,25 @@ def test_admin_coin_chat_exposes_quick_actions_and_fsm():
     assert "Kodni yuboring" not in source
     assert 'F.data.startswith("coinchatopen:")' in source
     assert 'callback_data=f"coinchatopen:{x[\'order_type\']}:{x[\'order_id\']}"' in source
-    assert "✅ Buyurtma bajarildi" in source
-    assert "❌ Buyurtma rad etildi" in source
     assert "COMPLETED_ORDERS_CHANNEL_ID" in source
     assert "send_terminal_order" in source
+    assert 'kind == "SHOP"' not in source
+    assert "coinshop:" not in source
+
+
+def test_coin_shop_uses_channel_claim_and_terminal_flow_without_order_chat():
+    source=(Path(__file__).parents[1]/"handlers"/"admin_coin_shop.py").read_text()
+    assert 'F.data.startswith("coinshop:")' in source
+    assert "claim_shop_order" in source
+    assert "complete_shop_order" in source
+    assert "reject_shop_order" in source
+    assert "✅ Buyurtma bajarildi" in source
+    assert "❌ Buyurtma rad etildi" in source
+    assert "await callback.message.delete()" in source
+    assert "ADMIN_CHAT_ID" in source
+    assert "COMPLETED_ORDERS_CHANNEL_ID" in source
+    assert "Order raqami" in source
+    completed=source.split("COMPLETED_ORDERS_CHANNEL_ID", 2)[-1]
+    assert "Order raqami" not in completed
+    assert "Buyurtma chati" not in source
+    assert "credential" not in source.lower()
