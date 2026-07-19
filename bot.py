@@ -29,6 +29,7 @@ from services.match_api import (
     start_ready_check,
 )
 from services.arena_notifications import ArenaNotification, send_arena_notification
+from services.campaign_delivery import CampaignDeliveryWorker
 
 
 bot = Bot(
@@ -186,6 +187,7 @@ async def main():
     asyncio.create_task(p2p_timeout_worker())
     asyncio.create_task(arena_ready_start_worker())
     asyncio.create_task(arena_ready_finish_worker())
+    asyncio.create_task(CampaignDeliveryWorker(bot).run())
 
     await dp.start_polling(bot)
 
