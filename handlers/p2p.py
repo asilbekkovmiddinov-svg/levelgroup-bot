@@ -467,8 +467,6 @@ async def p2p_trade_amount_handler(message: Message, state: FSMContext):
         return
 
     trade = get_data(result)
-    trade_id = trade.get("id")
-    response_minutes = trade.get("response_minutes", 15)
     remaining = get_remaining_text(trade)
 
     await message.answer(
