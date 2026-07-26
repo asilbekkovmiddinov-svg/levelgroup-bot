@@ -3,6 +3,7 @@ import html
 import logging
 import time
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram.exceptions import (
@@ -78,9 +79,59 @@ def notification_keyboard(recipient: dict) -> InlineKeyboardMarkup | None:
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
 
+def _format_p2p_number(value: str) -> str:
+    raw = value.strip().replace(" ", "").replace(",", ".")
+    try:
+        normalized = format(Decimal(raw), "f")
+    except InvalidOperation:
+        return html.escape(value.strip())
+    if "." in normalized:
+        normalized = normalized.rstrip("0").rstrip(".")
+    integer, separator, fraction = normalized.partition(".")
+    grouped = f"{int(integer):,}".replace(",", " ")
+    return f"{grouped}{separator}{fraction}" if separator else grouped
+
+
+def _p2p_message_values(message: str) -> dict[str, str] | None:
+    normalized = message.replace("\\n", "\n")
+    values: dict[str, str] = {}
+    for raw_line in normalized.splitlines():
+        line = raw_line.strip()
+        if line.startswith("Trade #"):
+            values["trade_id"] = line.removeprefix("Trade #").strip()
+        elif line.startswith("EFC:"):
+            values["efc_amount"] = line.removeprefix("EFC:").strip()
+        elif line.startswith("1 EFC:") and line.endswith("UZS"):
+            values["price"] = line.removeprefix("1 EFC:").removesuffix("UZS").strip()
+        elif line.startswith("Jami:") and line.endswith("UZS"):
+            values["total"] = line.removeprefix("Jami:").removesuffix("UZS").strip()
+    required = {"trade_id", "efc_amount", "price", "total"}
+    return values if required.issubset(values) else None
+
+
 def notification_text(recipient: dict) -> str:
+    raw_message = str(recipient.get("message") or "")
+    if recipient.get("event_type") == "P2P_TRADE_CREATED":
+        values = _p2p_message_values(raw_message)
+        if values:
+            trade_id = html.escape(values["trade_id"])
+            amount = _format_p2p_number(values["efc_amount"])
+            price = _format_p2p_number(values["price"])
+            total = _format_p2p_number(values["total"])
+            return (
+                "<b>🤝 Yangi P2P savdo so‘rovi</b>\n\n"
+                "━━━━━━━━━━━━━━\n\n"
+                f"🆔 Trade #{trade_id}\n\n"
+                f"🪙 Miqdor: {amount} EFC\n"
+                f"💵 Narx: {price} UZS / EFC\n"
+                f"💰 Jami: {total} UZS\n\n"
+                "━━━━━━━━━━━━━━\n\n"
+                "Savdo so‘rovini tasdiqlaysizmi?"
+            )
+        raw_message = raw_message.replace("\\n", "\n")
+
     title = html.escape(str(recipient.get("title") or ""))
-    message = html.escape(str(recipient.get("message") or ""))
+    message = html.escape(raw_message)
     return f"<b>{title}</b>\n\n{message}".strip()
 
 
