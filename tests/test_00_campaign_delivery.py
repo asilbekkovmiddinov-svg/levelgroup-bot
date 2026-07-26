@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.methods import SendMessage
 
 from services import campaign_delivery
@@ -14,7 +14,8 @@ def recipient(**overrides):
         "recipient_id": 11, "campaign_id": 7, "telegram_id": 1001,
         "title": "Premium <sale>", "message": "Bugun & hozir", "image_url": None,
         "button_text": "Ochish", "button_action": "COIN_SHOP", "button_target": None,
-        "promotion_id": None, "claimed_at": "2026-07-19T10:00:00Z",
+        "promotion_id": None, "event_type": None,
+        "claimed_at": "2026-07-19T10:00:00Z",
     }
     value.update(overrides)
     return value
@@ -150,6 +151,26 @@ class CampaignDeliveryTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(notification_keyboard(recipient(button_action="NONE")))
         finally:
             campaign_delivery.CAMPAIGN_MINIAPP_URL = original
+
+    def test_p2p_event_uses_existing_delivery_keyboard(self):
+        keyboard = notification_keyboard(recipient(
+            event_type="P2P_TRADE_CREATED", button_target="55",
+        ))
+        buttons = keyboard.inline_keyboard[0]
+        self.assertEqual(buttons[0].callback_data, "p2p_owner_approve_55")
+        self.assertEqual(buttons[1].callback_data, "p2p_owner_reject_55")
+
+    async def test_bad_request_is_permanent_and_logged(self):
+        error = TelegramBadRequest(SendMessage(chat_id=1001, text="x"), "chat not found")
+        api = FakeApi([recipient(event_type="P2P_TRADE_CREATED", button_target="55")])
+        with self.assertLogs("services.campaign_delivery", level="WARNING") as logs:
+            result = await CampaignDeliveryWorker(
+                FakeBot([error]), api, rate_delay_seconds=0, sleep=no_sleep,
+            ).process_batch()
+        self.assertEqual(result.failed, 1)
+        self.assertFalse(api.failed_calls[0][3])
+        self.assertEqual(api.failed_calls[0][2], "TelegramBadRequest")
+        self.assertTrue(any("campaign_delivery_bad_request" in line for line in logs.output))
 
     def test_message_text_is_safe_html(self):
         text = notification_text(recipient())
