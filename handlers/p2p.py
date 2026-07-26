@@ -467,40 +467,7 @@ async def p2p_trade_amount_handler(message: Message, state: FSMContext):
         return
 
     trade = get_data(result)
-    trade_id = trade.get("id")
-    owner_id = trade.get("owner_id")
-    response_minutes = trade.get("response_minutes", 15)
     remaining = get_remaining_text(trade)
-
-    owner_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Tasdiqlash",
-                    callback_data=f"p2p_owner_approve_{trade_id}",
-                ),
-                InlineKeyboardButton(
-                    text="❌ Rad etish",
-                    callback_data=f"p2p_owner_reject_{trade_id}",
-                ),
-            ]
-        ]
-    )
-
-    await message.bot.send_message(
-        chat_id=owner_id,
-        text=(
-            "🤝 Sizning P2P e’loningizga savdo so‘rovi keldi.\n\n"
-            f"🆔 Trade: #{trade_id}\n"
-            f"🪙 EFC: {format_efc(trade.get('efc_amount'))}\n"
-            f"💵 1 EFC: {format_money(trade.get('price_uzs'))} UZS\n"
-            f"💰 Jami: {format_money(trade.get('total_uzs'))} UZS\n"
-            f"⏱ Javob vaqti: {response_minutes} daqiqa\n"
-            f"⏳ Qolgan vaqt: {remaining}\n\n"
-            "Tasdiqlaysizmi?"
-        ),
-        reply_markup=owner_keyboard,
-    )
 
     await message.answer(
         "✅ Savdo so‘rovi yuborildi.\n\n"
