@@ -160,6 +160,29 @@ class CampaignDeliveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(buttons[0].callback_data, "p2p_owner_approve_55")
         self.assertEqual(buttons[1].callback_data, "p2p_owner_reject_55")
 
+    def test_p2p_notification_text_is_premium_and_uses_real_newlines(self):
+        text = notification_text(recipient(
+            event_type="P2P_TRADE_CREATED",
+            button_target="55",
+            message=(
+                r"Trade #55\nEFC: 1000\n1 EFC: 10000 UZS\n"
+                r"Jami: 10000000 UZS\n\nSavdo so‘rovini tasdiqlaysizmi?"
+            ),
+        ))
+
+        self.assertEqual(
+            text,
+            "<b>🤝 Yangi P2P savdo so‘rovi</b>\n\n"
+            "━━━━━━━━━━━━━━\n\n"
+            "🆔 Trade #55\n\n"
+            "🪙 Miqdor: 1 000 EFC\n"
+            "💵 Narx: 10 000 UZS / EFC\n"
+            "💰 Jami: 10 000 000 UZS\n\n"
+            "━━━━━━━━━━━━━━\n\n"
+            "Savdo so‘rovini tasdiqlaysizmi?",
+        )
+        self.assertNotIn(r"\n", text)
+
     async def test_bad_request_is_permanent_and_logged(self):
         error = TelegramBadRequest(SendMessage(chat_id=1001, text="x"), "chat not found")
         api = FakeApi([recipient(event_type="P2P_TRADE_CREATED", button_target="55")])
