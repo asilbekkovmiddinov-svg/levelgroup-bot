@@ -42,6 +42,17 @@ def _miniapp_url(page: str | None = None, **values) -> str | None:
 
 
 def notification_keyboard(recipient: dict) -> InlineKeyboardMarkup | None:
+    if recipient.get("event_type") == "P2P_TRADE_CREATED":
+        trade_id = int(recipient["button_target"])
+        return InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(
+                text="✅ Tasdiqlash", callback_data=f"p2p_owner_approve_{trade_id}",
+            ),
+            InlineKeyboardButton(
+                text="❌ Rad etish", callback_data=f"p2p_owner_reject_{trade_id}",
+            ),
+        ]])
+
     text = (recipient.get("button_text") or "Ochish").strip()
     action = str(recipient.get("button_action") or "NONE").upper()
     target = (recipient.get("button_target") or "").strip()
@@ -151,6 +162,16 @@ class CampaignDeliveryWorker:
             except Exception as error:
                 temporary = isinstance(error, (TEMPORARY_ERRORS, TelegramRetryAfter)) or not isinstance(error, PERMANENT_ERRORS)
                 reason = type(error).__name__
+                if isinstance(error, TelegramForbiddenError):
+                    logger.warning(
+                        "campaign_delivery_forbidden recipient_id=%s telegram_id=%s",
+                        recipient["recipient_id"], recipient["telegram_id"],
+                    )
+                elif isinstance(error, TelegramBadRequest):
+                    logger.warning(
+                        "campaign_delivery_bad_request recipient_id=%s telegram_id=%s",
+                        recipient["recipient_id"], recipient["telegram_id"],
+                    )
                 try:
                     callback = await self.api.failed(
                         int(recipient["recipient_id"]), recipient["claimed_at"], reason,
