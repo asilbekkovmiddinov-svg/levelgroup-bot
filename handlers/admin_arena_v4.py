@@ -5,6 +5,7 @@ from html import escape
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from config import ARENA_ADMIN_IDS
@@ -36,6 +37,52 @@ class ArenaV4AdminState(StatesGroup):
 
 def is_arena_admin(user_id: int) -> bool:
     return user_id in ARENA_ADMIN_IDS
+
+
+def _private_admin_state(
+    state: FSMContext, *, bot_id: int, admin_id: int
+) -> FSMContext:
+    return FSMContext(
+        storage=state.storage,
+        key=StorageKey(
+            bot_id=bot_id,
+            chat_id=admin_id,
+            user_id=admin_id,
+        ),
+    )
+
+
+async def _start_private_input(
+    callback: CallbackQuery,
+    state: FSMContext,
+    *,
+    data: dict,
+    next_state: State,
+    prompt: str,
+) -> bool:
+    await state.clear()
+    private_state = _private_admin_state(
+        state,
+        bot_id=callback.bot.id,
+        admin_id=callback.from_user.id,
+    )
+    await private_state.clear()
+    await private_state.update_data(**data)
+    await private_state.set_state(next_state)
+    try:
+        await callback.bot.send_message(callback.from_user.id, prompt)
+    except Exception:
+        await private_state.clear()
+        await callback.answer(
+            "Avval Bot shaxsiy chatida /start bosing.",
+            show_alert=True,
+        )
+        return False
+    await callback.answer(
+        "Hisobni Bot shaxsiy chatida kiriting.",
+        show_alert=True,
+    )
+    return True
 
 
 def _safe(value) -> str:
@@ -215,14 +262,16 @@ async def _start_score(
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
     review_id = int((callback.data or "").rsplit(":", 1)[1])
-    await state.clear()
-    await state.update_data(review_id=review_id, appeal=appeal)
-    await state.set_state(
-        ArenaV4AdminState.appeal_player_a_score
-        if appeal else ArenaV4AdminState.normal_player_a_score
+    await _start_private_input(
+        callback,
+        state,
+        data={"review_id": review_id, "appeal": appeal},
+        next_state=(
+            ArenaV4AdminState.appeal_player_a_score
+            if appeal else ArenaV4AdminState.normal_player_a_score
+        ),
+        prompt="Player A hisobini kiriting (0–99):",
     )
-    await callback.message.answer("Player A hisobini kiriting (0–99):")
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("arv4:score:"))
@@ -236,11 +285,13 @@ async def start_channel_score(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
     match_id = int((callback.data or "").rsplit(":", 1)[1])
-    await state.clear()
-    await state.update_data(match_id=match_id, appeal=False)
-    await state.set_state(ArenaV4AdminState.normal_player_a_score)
-    await callback.message.answer("Player A hisobini kiriting (0–99):")
-    await callback.answer()
+    await _start_private_input(
+        callback,
+        state,
+        data={"match_id": match_id, "appeal": False},
+        next_state=ArenaV4AdminState.normal_player_a_score,
+        prompt="Player A hisobini kiriting (0–99):",
+    )
 
 
 @router.callback_query(F.data.startswith("arv4:appeal:score:"))
@@ -365,14 +416,17 @@ async def start_channel_cancel(callback: CallbackQuery, state: FSMContext):
     if not is_arena_admin(callback.from_user.id):
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
-    await state.clear()
-    await state.update_data(match_id=int((callback.data or "").rsplit(":", 1)[1]))
-    await state.set_state(ArenaV4AdminState.cancel_reason)
-    await callback.message.answer(
-        "Sabab kodini yuboring: FAKE_SCREENSHOT, MATCH_NOT_PLAYED, "
-        "RULE_VIOLATION yoki TECHNICAL_ISSUE"
+    match_id = int((callback.data or "").rsplit(":", 1)[1])
+    await _start_private_input(
+        callback,
+        state,
+        data={"match_id": match_id},
+        next_state=ArenaV4AdminState.cancel_reason,
+        prompt=(
+            "Sabab kodini yuboring: FAKE_SCREENSHOT, MATCH_NOT_PLAYED, "
+            "RULE_VIOLATION yoki TECHNICAL_ISSUE"
+        ),
     )
-    await callback.answer()
 
 
 @router.message(ArenaV4AdminState.cancel_reason)
