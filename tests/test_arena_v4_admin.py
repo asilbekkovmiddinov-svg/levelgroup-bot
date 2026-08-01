@@ -2,7 +2,8 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import MemoryStorage, StorageKey
+from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
 
 from handlers import admin_arena_v4
 from services import arena_v4_api
