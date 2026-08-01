@@ -161,6 +161,25 @@ class ArenaApiClientTests(unittest.TestCase):
             {"X-Internal-Api-Key": "internal-key"},
         )
 
+    def test_internal_idempotency_header_is_forwarded(self):
+        factory = FakeSessionFactory(FakeResponse(payload={"id": 7}))
+        self.run_async(
+            self.client(factory).request(
+                "POST",
+                "/internal/arena/reviews/7/decision",
+                internal=True,
+                idempotency_key="bot-score-7",
+                json={"admin_id": 1001, "owner_score": 2, "opponent_score": 1},
+            )
+        )
+        self.assertEqual(
+            factory.calls[0][2]["headers"],
+            {
+                "X-Internal-Api-Key": "internal-key",
+                "Idempotency-Key": "bot-score-7",
+            },
+        )
+
     def test_timeout_is_retried_and_returns_safe_error(self):
         factory = FakeSessionFactory(asyncio.TimeoutError(), asyncio.TimeoutError())
         with self.assertRaises(match_api.ArenaTimeoutError) as error:
@@ -245,39 +264,6 @@ class ArenaApiClientTests(unittest.TestCase):
             self.assertNotIn("telegram_id", payload)
             self.assertNotIn("creator_telegram_id", payload)
             self.assertNotIn("opponent_telegram_id", payload)
-
-    def test_internal_evidence_uses_internal_endpoint_and_identity_body(self):
-        class Recorder:
-            def __init__(self):
-                self.calls = []
-
-            async def request(self, *args, **kwargs):
-                self.calls.append((args, kwargs))
-                return {"id": 42, "status": "PLAYING"}
-
-        recorder = Recorder()
-        with patch.object(match_api, "client", recorder):
-            result = self.run_async(
-                match_api.upload_internal_evidence(
-                    match_id=42,
-                    telegram_id=1001,
-                    screenshot_file_id="photo-id",
-                )
-            )
-
-        self.assertEqual(result["id"], 42)
-        args, kwargs = recorder.calls[0]
-        self.assertEqual(args, ("POST", "/matches/internal/evidence"))
-        self.assertTrue(kwargs["internal"])
-        self.assertEqual(
-            kwargs["json"],
-            {
-                "match_id": 42,
-                "telegram_id": 1001,
-                "screenshot_file_id": "photo-id",
-            },
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

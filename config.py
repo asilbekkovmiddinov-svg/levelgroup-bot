@@ -28,13 +28,17 @@ if CAMPAIGN_DELIVERY_RATE_DELAY_SECONDS < 0:
 if CAMPAIGN_DELIVERY_RATE_LIMIT_RETRIES < 0 or CAMPAIGN_DELIVERY_BACKOFF_SECONDS <= 0:
     raise ValueError("Invalid campaign delivery retry configuration")
 ARENA_MINIAPP_URL = os.getenv("ARENA_MINIAPP_URL") or os.getenv("MINIAPP_URL")
-ARENA_EVIDENCE_STATE_DB = os.getenv("ARENA_EVIDENCE_STATE_DB", "levelgroup.db")
 
 NEW_ORDERS_CHANNEL_ID = int(os.getenv("NEW_ORDERS_CHANNEL_ID", "0"))
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
 ADMIN_USER_IDS = {
     int(value.strip())
     for value in os.getenv("ADMIN_USER_IDS", "").split(",")
+    if value.strip()
+}
+ARENA_ADMIN_IDS = {
+    int(value.strip())
+    for value in os.getenv("ARENA_ADMIN_IDS", "").split(",")
     if value.strip()
 }
 ADMIN_LOGS_CHANNEL_ID = int(os.getenv("ADMIN_LOGS_CHANNEL_ID", "0"))
