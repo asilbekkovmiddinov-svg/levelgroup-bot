@@ -20,7 +20,6 @@ class ArenaNotification(StrEnum):
     TECHNICAL_REVIEW = "technical_review"
     ROOM_CODE_READY = "room_code_ready"
     SCREENSHOT_REQUIRED = "screenshot_required"
-    VIDEO_REQUIRED = "video_required"
     EVIDENCE_ACCEPTED = "evidence_accepted"
     ADMIN_REVIEW = "admin_review"
     WINNER = "winner"
@@ -38,7 +37,6 @@ _TEMPLATES = {
     ArenaNotification.TECHNICAL_REVIEW: "⚠️ <b>Match texnik ko‘rib chiqishga yuborildi.</b>",
     ArenaNotification.ROOM_CODE_READY: "🔐 <b>Room Code bosqichi tayyor.</b>",
     ArenaNotification.SCREENSHOT_REQUIRED: "📸 <b>Match screenshotini yuboring.</b>",
-    ArenaNotification.VIDEO_REQUIRED: "🎥 <b>Match videosini yuboring.</b>",
     ArenaNotification.EVIDENCE_ACCEPTED: "✅ <b>Dalillar qabul qilindi.</b>",
     ArenaNotification.ADMIN_REVIEW: "🔎 <b>Admin matchni tekshirmoqda.</b>",
     ArenaNotification.WINNER: "🏆 <b>Siz g‘olib bo‘ldingiz!</b>",
@@ -54,7 +52,6 @@ _MINIAPP_ACTIONS = {
     ArenaNotification.READY_REQUIRED: "ready",
     ArenaNotification.ROOM_CODE_READY: "room-code",
     ArenaNotification.SCREENSHOT_REQUIRED: "evidence",
-    ArenaNotification.VIDEO_REQUIRED: "evidence",
     ArenaNotification.EVIDENCE_ACCEPTED: "detail",
     ArenaNotification.ADMIN_REVIEW: "detail",
 }
@@ -84,20 +81,6 @@ def format_arena_notification(
 def arena_notification_keyboard(
     notification: ArenaNotification, *, match_id: int | None = None
 ) -> InlineKeyboardMarkup | None:
-    if notification in {
-        ArenaNotification.SCREENSHOT_REQUIRED,
-        ArenaNotification.VIDEO_REQUIRED,
-    } and match_id is not None:
-        return InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📎 Evidence yuborish",
-                        callback_data=f"arena_evidence:{match_id}",
-                    )
-                ]
-            ]
-        )
     action = _MINIAPP_ACTIONS.get(notification)
     if action is None:
         return None

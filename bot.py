@@ -15,8 +15,7 @@ from handlers.wheel import router as wheel_router
 from handlers.admin_wheel import router as admin_wheel_router
 from handlers.chat_id import router as chat_id_router
 from handlers.admin_orders import router as admin_orders_router
-from handlers.match import router as match_router
-from handlers.admin_match import router as admin_match_router
+from handlers.admin_arena_v4 import router as admin_arena_v4_router
 from handlers.admin_coin_chat import router as admin_coin_chat_router
 from handlers.admin_coin_shop import router as admin_coin_shop_router
 
@@ -53,8 +52,7 @@ dp.include_router(wheel_router)
 dp.include_router(admin_wheel_router)
 dp.include_router(chat_id_router)
 dp.include_router(admin_orders_router)
-dp.include_router(match_router)
-dp.include_router(admin_match_router)
+dp.include_router(admin_arena_v4_router)
 dp.include_router(admin_coin_chat_router)
 dp.include_router(admin_coin_shop_router)
 

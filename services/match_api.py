@@ -115,6 +115,7 @@ class ArenaApiClient:
         internal: bool = False,
         json: dict | None = None,
         params: dict | None = None,
+        idempotency_key: str | None = None,
     ) -> Any:
         if not self.base_url:
             raise ArenaApiError("ARENA_API_URL yoki BACKEND_URL sozlanmagan.")
@@ -127,6 +128,8 @@ class ArenaApiClient:
             if not isinstance(init_data, str) or not init_data.strip():
                 raise ArenaAuthenticationError("Telegram initData talab qilinadi.")
             headers["X-Telegram-Init-Data"] = init_data
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
 
         url = f"{self.base_url}{path}"
         last_error: ArenaApiError | None = None
@@ -245,38 +248,6 @@ async def create_room_code(match_id, init_data=None, room_code=None):
     )
 
 
-async def upload_result_screenshot(
-    match_id, init_data=None, screenshot_file_id=None, video_file_id=None
-):
-    payload = {}
-    if screenshot_file_id:
-        payload["screenshot_file_id"] = screenshot_file_id
-    if video_file_id:
-        payload["video_file_id"] = video_file_id
-    return await client.request(
-        "POST", f"/matches/{match_id}/screenshot", init_data=init_data, json=payload
-    )
-
-
-async def upload_internal_evidence(
-    match_id,
-    telegram_id,
-    screenshot_file_id=None,
-    video_file_id=None,
-):
-    payload = {
-        "match_id": match_id,
-        "telegram_id": telegram_id,
-    }
-    if screenshot_file_id:
-        payload["screenshot_file_id"] = screenshot_file_id
-    if video_file_id:
-        payload["video_file_id"] = video_file_id
-    return await client.request(
-        "POST", "/matches/internal/evidence", internal=True, json=payload
-    )
-
-
 async def cancel_match(
     match_id, init_data=None, cancel_reason=None, admin_telegram_id=None
 ):
@@ -326,23 +297,4 @@ async def start_ready_check(match_id):
 async def finish_ready_check(match_id):
     return await client.request(
         "POST", f"/matches/{match_id}/finish-ready-check", internal=True
-    )
-
-
-async def resolve_match(
-    match_id,
-    admin_telegram_id,
-    winner_telegram_id=None,
-    admin_comment=None,
-    decision=None,
-):
-    payload = {
-        "admin_telegram_id": admin_telegram_id,
-        "winner_telegram_id": winner_telegram_id,
-        "admin_comment": admin_comment,
-    }
-    if decision:
-        payload["decision"] = decision
-    return await client.request(
-        "POST", f"/matches/{match_id}/resolve", internal=True, json=payload
     )

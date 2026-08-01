@@ -87,13 +87,20 @@ class ArenaNotificationTests(unittest.TestCase):
             "https://miniapp.example/?section=arena",
         )
 
-    def test_evidence_notification_has_bot_fsm_button(self):
-        markup = arena_notification_keyboard(
-            ArenaNotification.SCREENSHOT_REQUIRED, match_id=42
-        )
+    def test_screenshot_notification_uses_miniapp_not_bot_fsm(self):
+        with patch(
+            "services.arena_notifications.build_arena_miniapp_url",
+            return_value="https://miniapp.example/?section=arena&action=evidence",
+        ):
+            markup = arena_notification_keyboard(
+                ArenaNotification.SCREENSHOT_REQUIRED, match_id=42
+            )
         button = markup.inline_keyboard[0][0]
-        self.assertEqual(button.callback_data, "arena_evidence:42")
-        self.assertIsNone(button.web_app)
+        self.assertEqual(
+            button.web_app.url,
+            "https://miniapp.example/?section=arena&action=evidence",
+        )
+        self.assertIsNone(button.callback_data)
 
     def test_delivery_success_uses_formatted_message(self):
         bot = FakeBot()
