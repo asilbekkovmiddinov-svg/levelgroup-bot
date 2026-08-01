@@ -1,6 +1,10 @@
 import asyncio
 from unittest.mock import AsyncMock, patch
 
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
+
 from handlers import admin_arena_v4
 from services import arena_v4_api
 
@@ -72,6 +76,30 @@ def test_keep_and_update_score_appeal_actions():
     assert "owner_score" not in keep
     assert update["action"] == "UPDATE_SCORE"
     assert (update["owner_score"], update["opponent_score"]) == (1, 4)
+
+
+def test_channel_callback_uses_private_admin_fsm_key():
+    state = FSMContext(
+        storage=MemoryStorage(),
+        key=StorageKey(bot_id=77, chat_id=-100123, user_id=1001),
+    )
+    private = admin_arena_v4._private_admin_state(
+        state, bot_id=77, admin_id=1001
+    )
+    assert private.key.bot_id == 77
+    assert private.key.chat_id == 1001
+    assert private.key.user_id == 1001
+
+
+def test_channel_prompts_are_sent_to_private_admin_chat():
+    source = (
+        __import__("pathlib").Path(admin_arena_v4.__file__).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "callback.bot.send_message(callback.from_user.id, prompt)" in source
+    assert "Hisobni Bot shaxsiy chatida kiriting." in source
+    assert 'callback.message.answer("Player A hisobini kiriting' not in source
 
 
 def test_multi_admin_allowlist(monkeypatch):
