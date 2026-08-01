@@ -55,6 +55,25 @@ async def submit_score(
     )
 
 
+async def submit_match_score(
+    match_id: int, admin_id: int, owner_score: int, opponent_score: int,
+):
+    return await client.request(
+        "POST", f"/internal/arena/matches/{match_id}/score", internal=True,
+        idempotency_key=f"bot:match-score:{match_id}:{admin_id}:{owner_score}:{opponent_score}",
+        json={"admin_id": admin_id, "owner_score": owner_score,
+              "opponent_score": opponent_score, "reason": "TELEGRAM_CHANNEL"},
+    )
+
+
+async def cancel_channel_match(match_id: int, admin_id: int, reason: str):
+    return await client.request(
+        "POST", f"/internal/arena/matches/{match_id}/cancel", internal=True,
+        idempotency_key=f"bot:match-cancel:{match_id}:{admin_id}:{reason}",
+        json={"admin_id": admin_id, "reason": reason},
+    )
+
+
 async def cancel_match(review_id: int, admin_id: int):
     return await client.request(
         "POST",
@@ -104,4 +123,6 @@ __all__ = [
     "list_reviews",
     "submit_appeal_decision",
     "submit_score",
+    "submit_match_score",
+    "cancel_channel_match",
 ]
