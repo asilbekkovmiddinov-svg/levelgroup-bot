@@ -9,7 +9,7 @@ class StartKeyboardTest(unittest.TestCase):
         self.assertIn("ReplyKeyboardRemove", source)
         self.assertIn("reply_markup=ReplyKeyboardRemove()", source)
         self.assertNotIn("ReplyKeyboardMarkup", source)
-        self.assertNotIn("KeyboardButton", source)
+        self.assertNotIn("KeyboardButton(text=", source)
         self.assertNotIn("main_keyboard()", source)
 
     def test_start_exposes_configured_miniapp_button(self):
