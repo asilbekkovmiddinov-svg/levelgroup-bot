@@ -1,33 +1,11 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
-from aiogram.types import (
-    Message,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
+from aiogram.types import Message, ReplyKeyboardRemove
 from services.api import register_internal_user
 from services.referral import referral_code_from_start
 
 router = Router()
 
-
-def main_keyboard():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="💰 Hamyon"),
-            ],
-            [
-                KeyboardButton(text="🤝 P2P Market"),
-                KeyboardButton(text="🎰 Baraban"),
-            ],
-            [
-                KeyboardButton(text="👤 Profil"),
-                KeyboardButton(text="⚙️ Sozlamalar"),
-            ],
-        ],
-        resize_keyboard=True,
-    )
 
 
 @router.message(CommandStart())
@@ -49,5 +27,5 @@ async def start_command(message: Message):
         "👋 Assalomu alaykum!\n\n"
         "LEVEL_GROUP ga xush kelibsiz! 🚀\n\n"
         "Kerakli bo‘limni tanlang.",
-        reply_markup=main_keyboard(),
+        reply_markup=ReplyKeyboardRemove(),
     )
