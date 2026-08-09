@@ -1,6 +1,13 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyKeyboardRemove,
+    WebAppInfo,
+)
+from config import MINIAPP_URL
 from services.api import register_internal_user
 from services.referral import referral_code_from_start
 
@@ -29,3 +36,16 @@ async def start_command(message: Message):
         "Kerakli bo‘limni tanlang.",
         reply_markup=ReplyKeyboardRemove(),
     )
+
+    if MINIAPP_URL:
+        await message.answer(
+            "LEVEL_GROUP MiniApp’ni ochish uchun quyidagi tugmani bosing.",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text="🚀 LEVEL_GROUP’ni ochish",
+                        web_app=WebAppInfo(url=MINIAPP_URL),
+                    )
+                ]]
+            ),
+        )
