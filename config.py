@@ -7,14 +7,17 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 BACKEND_URL = os.getenv("BACKEND_URL")
 MINIAPP_URL = (os.getenv("MINIAPP_URL") or "").strip()
 
+REQUIRED_CHANNELS = [
+    {"chat_id": os.getenv("REQUIRED_CHANNEL_KINGPESSER", "@KingPessser").strip(), "title": "KingPesser 🇺🇿", "url": "https://t.me/KingPessser"},
+    {"chat_id": os.getenv("REQUIRED_CHANNEL_ORDERS", "@levelgroup_buyurtmalar").strip(), "title": "LEVEL | Completed Orders", "url": "https://t.me/levelgroup_buyurtmalar"},
+]
+
 # Arena API foundation. User requests use verified Telegram MiniApp initData;
 # worker/admin requests use the backend's separate internal authentication.
 ARENA_API_URL = os.getenv("ARENA_API_URL", BACKEND_URL or "").rstrip("/")
 ARENA_API_TIMEOUT_SECONDS = float(os.getenv("ARENA_API_TIMEOUT_SECONDS", "10"))
 ARENA_API_RETRIES = max(0, int(os.getenv("ARENA_API_RETRIES", "2")))
-ARENA_API_RETRY_BACKOFF_SECONDS = float(
-    os.getenv("ARENA_API_RETRY_BACKOFF_SECONDS", "0.25")
-)
+ARENA_API_RETRY_BACKOFF_SECONDS = float(os.getenv("ARENA_API_RETRY_BACKOFF_SECONDS", "0.25"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
 CAMPAIGN_DELIVERY_INTERVAL_SECONDS = float(os.getenv("CAMPAIGN_DELIVERY_INTERVAL_SECONDS", "5"))
 CAMPAIGN_DELIVERY_RATE_DELAY_SECONDS = float(os.getenv("CAMPAIGN_DELIVERY_RATE_DELAY_SECONDS", "0.05"))
@@ -32,20 +35,8 @@ ARENA_MINIAPP_URL = os.getenv("ARENA_MINIAPP_URL") or MINIAPP_URL
 
 NEW_ORDERS_CHANNEL_ID = int(os.getenv("NEW_ORDERS_CHANNEL_ID", "0"))
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
-ADMIN_USER_IDS = {
-    int(value.strip())
-    for value in os.getenv("ADMIN_USER_IDS", "").split(",")
-    if value.strip()
-}
-ARENA_ADMIN_IDS = {
-    int(value.strip())
-    for value in os.getenv("ARENA_ADMIN_IDS", "").split(",")
-    if value.strip()
-}
+ADMIN_USER_IDS = {int(value.strip()) for value in os.getenv("ADMIN_USER_IDS", "").split(",") if value.strip()}
+ARENA_ADMIN_IDS = {int(value.strip()) for value in os.getenv("ARENA_ADMIN_IDS", "").split(",") if value.strip()}
 ADMIN_LOGS_CHANNEL_ID = int(os.getenv("ADMIN_LOGS_CHANNEL_ID", "0"))
 COMPLETED_ORDERS_CHANNEL_ID = int(os.getenv("COMPLETED_ORDERS_CHANNEL_ID", "0"))
-
-# 1vs1 Arena
-MATCH_RESULTS_CHANNEL_ID = int(
-    os.getenv("MATCH_RESULTS_CHANNEL_ID", "0")
-)
+MATCH_RESULTS_CHANNEL_ID = int(os.getenv("MATCH_RESULTS_CHANNEL_ID", "0"))
