@@ -12,6 +12,7 @@ from config import ARENA_ADMIN_IDS
 from services.arena_v4_api import (
     ArenaApiError,
     cancel_match,
+    claim_match_review,
     claim_review,
     get_review_detail,
     list_reviews,
@@ -32,7 +33,6 @@ class ArenaV4AdminState(StatesGroup):
     normal_player_b_score = State()
     appeal_player_a_score = State()
     appeal_player_b_score = State()
-    cancel_reason = State()
 
 
 def is_arena_admin(user_id: int) -> bool:
@@ -179,7 +179,10 @@ def api_error_message(error: Exception) -> str:
     if not isinstance(error, ArenaApiError):
         return "Arena V4 ichki xatoligi."
     if error.status == 409:
-        return "Review boshqa admin tomonidan olingan yoki yakunlangan."
+        return (
+            "Match hali admin tekshiruviga tayyor emas, boshqa admin "
+            "tomonidan olingan yoki yakunlangan."
+        )
     if error.status in {401, 403}:
         return "Backend Internal API autentifikatsiyasi noto‘g‘ri."
     if error.status == 404:
@@ -279,19 +282,173 @@ async def start_normal_score(callback: CallbackQuery, state: FSMContext):
     await _start_score(callback, state, appeal=False)
 
 
+def channel_score_keyboard(
+    match_id: int, owner_score: int = 0, opponent_score: int = 0
+) -> InlineKeyboardMarkup:
+    def adjust(action: str) -> str:
+        return (
+            f"arv4:m:adj:{match_id}:{owner_score}:{opponent_score}:{action}"
+        )
+
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="A ➖", callback_data=adjust("a-")),
+            InlineKeyboardButton(
+                text=f"⚽ A {owner_score}:{opponent_score} B",
+                callback_data=f"arv4:m:noop:{match_id}",
+            ),
+            InlineKeyboardButton(text="A ➕", callback_data=adjust("a+")),
+        ],
+        [
+            InlineKeyboardButton(text="B ➖", callback_data=adjust("b-")),
+            InlineKeyboardButton(
+                text="♻️ 0:0",
+                callback_data=f"arv4:m:reset:{match_id}",
+            ),
+            InlineKeyboardButton(text="B ➕", callback_data=adjust("b+")),
+        ],
+        [InlineKeyboardButton(
+            text="✅ Natijani tasdiqlash",
+            callback_data=(
+                f"arv4:m:confirm:{match_id}:{owner_score}:{opponent_score}"
+            ),
+        )],
+        [InlineKeyboardButton(
+            text="❌ Matchni bekor qilish",
+            callback_data=(
+                f"arv4:m:cancel:{match_id}:{owner_score}:{opponent_score}"
+            ),
+        )],
+    ])
+
+
+def channel_cancel_keyboard(
+    match_id: int, owner_score: int = 0, opponent_score: int = 0
+) -> InlineKeyboardMarkup:
+    reasons = [
+        ("Soxta screenshot", "F"),
+        ("Match o‘ynalmagan", "N"),
+        ("Qoida buzilgan", "R"),
+        ("Texnik muammo", "T"),
+    ]
+    rows = [[InlineKeyboardButton(
+        text=text, callback_data=f"arv4:m:cx:{match_id}:{code}"
+    )] for text, code in reasons]
+    rows.append([InlineKeyboardButton(
+        text="↩️ Hisobga qaytish",
+        callback_data=(
+            f"arv4:m:back:{match_id}:{owner_score}:{opponent_score}"
+        ),
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _channel_score_parts(data: str, action: str) -> tuple[int, int, int]:
+    prefix = f"arv4:m:{action}:"
+    match_id, owner_score, opponent_score = data.removeprefix(prefix).split(":")
+    return int(match_id), int(owner_score), int(opponent_score)
+
+
+async def _claim_channel(callback: CallbackQuery, match_id: int) -> bool:
+    if not is_arena_admin(callback.from_user.id):
+        await callback.answer("Siz Arena admin emassiz.", show_alert=True)
+        return False
+    try:
+        await claim_match_review(match_id, callback.from_user.id)
+        return True
+    except Exception as error:
+        await callback.answer(api_error_message(error), show_alert=True)
+        return False
+
+
+@router.callback_query(F.data.startswith("arv4:m:start:"))
 @router.callback_query(F.data.startswith("arv4:match:score:"))
-async def start_channel_score(callback: CallbackQuery, state: FSMContext):
+async def start_channel_score(callback: CallbackQuery):
+    match_id = int((callback.data or "").rsplit(":", 1)[1])
+    if not await _claim_channel(callback, match_id):
+        return
+    await callback.message.edit_reply_markup(
+        reply_markup=channel_score_keyboard(match_id)
+    )
+    await callback.answer(f"Match #{match_id} sizga biriktirildi.")
+
+
+@router.callback_query(F.data.startswith("arv4:m:adj:"))
+async def adjust_channel_score(callback: CallbackQuery):
+    parts = (callback.data or "").split(":")
+    match_id, owner_score, opponent_score = map(int, parts[3:6])
+    action = parts[6]
+    if not await _claim_channel(callback, match_id):
+        return
+    if action == "a-":
+        owner_score = max(0, owner_score - 1)
+    elif action == "a+":
+        owner_score = min(99, owner_score + 1)
+    elif action == "b-":
+        opponent_score = max(0, opponent_score - 1)
+    elif action == "b+":
+        opponent_score = min(99, opponent_score + 1)
+    await callback.message.edit_reply_markup(
+        reply_markup=channel_score_keyboard(
+            match_id, owner_score, opponent_score
+        )
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("arv4:m:reset:"))
+async def reset_channel_score(callback: CallbackQuery):
+    match_id = int((callback.data or "").rsplit(":", 1)[1])
+    if not await _claim_channel(callback, match_id):
+        return
+    await callback.message.edit_reply_markup(
+        reply_markup=channel_score_keyboard(match_id)
+    )
+    await callback.answer("Hisob 0:0 qilindi.")
+
+
+@router.callback_query(F.data.startswith("arv4:m:noop:"))
+async def channel_score_noop(callback: CallbackQuery):
+    await callback.answer("Hisob A : B ko‘rinishida.")
+
+
+@router.callback_query(F.data.startswith("arv4:m:confirm:"))
+async def confirm_channel_score(callback: CallbackQuery):
+    match_id, owner_score, opponent_score = _channel_score_parts(
+        callback.data or "", "confirm"
+    )
     if not is_arena_admin(callback.from_user.id):
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
-    match_id = int((callback.data or "").rsplit(":", 1)[1])
-    await _start_private_input(
-        callback,
-        state,
-        data={"match_id": match_id, "appeal": False},
-        next_state=ArenaV4AdminState.normal_player_a_score,
-        prompt="Player A hisobini kiriting (0–99):",
-    )
+    if owner_score == opponent_score:
+        await callback.answer(
+            "Teng hisob qabul qilinmaydi. Penalty natijasini kiriting.",
+            show_alert=True,
+        )
+        return
+
+    async def action():
+        return await submit_match_score(
+            match_id, callback.from_user.id, owner_score, opponent_score
+        )
+
+    try:
+        applied = await _exclusive_action(match_id, action)
+        if not applied:
+            await callback.answer(
+                "Bu match natijasi hozir saqlanmoqda.", show_alert=True
+            )
+            return
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await callback.answer(
+            f"✅ Match #{match_id}: {owner_score}:{opponent_score} saqlandi.",
+            show_alert=True,
+        )
+    except Exception as error:
+        await callback.answer(api_error_message(error), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("arv4:appeal:score:"))
@@ -411,42 +568,76 @@ async def normal_cancel(callback: CallbackQuery):
     await _direct_action(callback, "CANCEL")
 
 
+@router.callback_query(F.data.startswith("arv4:m:cancel:"))
 @router.callback_query(F.data.startswith("arv4:match:cancel:"))
-async def start_channel_cancel(callback: CallbackQuery, state: FSMContext):
+async def start_channel_cancel(callback: CallbackQuery):
+    parts = (callback.data or "").split(":")
+    match_id = int(parts[3])
+    owner_score = int(parts[4]) if len(parts) > 4 else 0
+    opponent_score = int(parts[5]) if len(parts) > 5 else 0
+    if not await _claim_channel(callback, match_id):
+        return
+    await callback.message.edit_reply_markup(
+        reply_markup=channel_cancel_keyboard(
+            match_id, owner_score, opponent_score
+        )
+    )
+    await callback.answer("Bekor qilish sababini tanlang.")
+
+
+@router.callback_query(F.data.startswith("arv4:m:back:"))
+async def back_to_channel_score(callback: CallbackQuery):
+    match_id, owner_score, opponent_score = _channel_score_parts(
+        callback.data or "", "back"
+    )
+    if not await _claim_channel(callback, match_id):
+        return
+    await callback.message.edit_reply_markup(
+        reply_markup=channel_score_keyboard(
+            match_id, owner_score, opponent_score
+        )
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("arv4:m:cx:"))
+async def submit_channel_cancel_reason(callback: CallbackQuery):
+    parts = (callback.data or "").split(":")
+    match_id = int(parts[3])
+    reason = {
+        "F": "FAKE_SCREENSHOT",
+        "N": "MATCH_NOT_PLAYED",
+        "R": "RULE_VIOLATION",
+        "T": "TECHNICAL_ISSUE",
+    }.get(parts[4])
     if not is_arena_admin(callback.from_user.id):
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
-    match_id = int((callback.data or "").rsplit(":", 1)[1])
-    await _start_private_input(
-        callback,
-        state,
-        data={"match_id": match_id},
-        next_state=ArenaV4AdminState.cancel_reason,
-        prompt=(
-            "Sabab kodini yuboring: FAKE_SCREENSHOT, MATCH_NOT_PLAYED, "
-            "RULE_VIOLATION yoki TECHNICAL_ISSUE"
-        ),
-    )
-
-
-@router.message(ArenaV4AdminState.cancel_reason)
-async def submit_channel_cancel_reason(message: Message, state: FSMContext):
-    if not is_arena_admin(message.from_user.id):
-        await state.clear()
+    if reason is None:
+        await callback.answer("Noto‘g‘ri sabab kodi.", show_alert=True)
         return
-    reason = (message.text or "").strip().upper()
-    allowed = {"FAKE_SCREENSHOT", "MATCH_NOT_PLAYED", "RULE_VIOLATION", "TECHNICAL_ISSUE"}
-    if reason not in allowed:
-        await message.answer("Noto‘g‘ri sabab kodi.")
-        return
-    data = await state.get_data()
+
+    async def action():
+        return await cancel_channel_match(
+            match_id, callback.from_user.id, reason
+        )
+
     try:
-        await cancel_channel_match(data["match_id"], message.from_user.id, reason)
+        applied = await _exclusive_action(match_id, action)
+        if not applied:
+            await callback.answer(
+                "Bu match qarori hozir saqlanmoqda.", show_alert=True
+            )
+            return
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await callback.answer(
+            f"✅ Match #{match_id} bekor qilindi.", show_alert=True
+        )
     except Exception as error:
-        await message.answer(api_error_message(error))
-        return
-    await state.clear()
-    await message.answer("✅ Match backendda bekor qilindi.")
+        await callback.answer(api_error_message(error), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("arv4:appeal:keep:"))

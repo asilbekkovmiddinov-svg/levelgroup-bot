@@ -33,6 +33,15 @@ async def claim_review(review_id: int, admin_id: int):
     )
 
 
+async def claim_match_review(match_id: int, admin_id: int):
+    return await client.request(
+        "POST",
+        f"/internal/arena/matches/{match_id}/claim",
+        internal=True,
+        json={"admin_id": admin_id},
+    )
+
+
 async def submit_score(
     review_id: int,
     admin_id: int,
@@ -118,6 +127,7 @@ async def submit_appeal_decision(
 __all__ = [
     "ArenaApiError",
     "cancel_match",
+    "claim_match_review",
     "claim_review",
     "get_review_detail",
     "list_reviews",
