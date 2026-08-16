@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from aiogram.fsm.context import FSMContext
@@ -34,6 +36,17 @@ def test_claim_uses_internal_api_and_admin_identity():
     assert result["status"] == "CLAIMED"
     call = client.request.await_args
     assert call.args == ("POST", "/internal/arena/reviews/7/claim")
+    assert call.kwargs["internal"] is True
+    assert call.kwargs["json"] == {"admin_id": 1001}
+
+
+def test_channel_claim_uses_match_specific_internal_endpoint():
+    with patch.object(arena_v4_api, "client") as client:
+        client.request = AsyncMock(return_value={"id": 8, "status": "CLAIMED"})
+        result = run(arena_v4_api.claim_match_review(42, 1001))
+    assert result["status"] == "CLAIMED"
+    call = client.request.await_args
+    assert call.args == ("POST", "/internal/arena/matches/42/claim")
     assert call.kwargs["internal"] is True
     assert call.kwargs["json"] == {"admin_id": 1001}
 
@@ -91,15 +104,74 @@ def test_channel_callback_uses_private_admin_fsm_key():
     assert private.key.user_id == 1001
 
 
-def test_channel_prompts_are_sent_to_private_admin_chat():
-    source = (
-        __import__("pathlib").Path(admin_arena_v4.__file__).read_text(
-            encoding="utf-8"
-        )
+def test_channel_score_stays_on_the_channel_post():
+    source = inspect.getsource(admin_arena_v4.start_channel_score)
+    assert "edit_reply_markup" in source
+    assert "channel_score_keyboard" in source
+    assert "_start_private_input" not in source
+
+
+def test_channel_score_keyboard_is_match_specific_and_keeps_draft_score():
+    keyboard = admin_arena_v4.channel_score_keyboard(42, 3, 2)
+    buttons = [button for row in keyboard.inline_keyboard for button in row]
+    assert any(button.text == "⚽ A 3:2 B" for button in buttons)
+    callbacks = [button.callback_data for button in buttons]
+    assert "arv4:m:confirm:42:3:2" in callbacks
+    assert "arv4:m:cancel:42:3:2" in callbacks
+    assert all(len(value) <= 64 for value in callbacks)
+
+
+def test_start_channel_score_claims_match_before_showing_controls(monkeypatch):
+    monkeypatch.setattr(admin_arena_v4, "ARENA_ADMIN_IDS", {1001})
+    claim = AsyncMock(return_value={"status": "CLAIMED"})
+    monkeypatch.setattr(admin_arena_v4, "claim_match_review", claim)
+    callback = SimpleNamespace(
+        data="arv4:m:start:42",
+        from_user=SimpleNamespace(id=1001),
+        message=SimpleNamespace(edit_reply_markup=AsyncMock()),
+        answer=AsyncMock(),
     )
-    assert "callback.bot.send_message(callback.from_user.id, prompt)" in source
-    assert "Hisobni Bot shaxsiy chatida kiriting." in source
-    assert 'callback.message.answer("Player A hisobini kiriting' not in source
+
+    run(admin_arena_v4.start_channel_score(callback))
+
+    claim.assert_awaited_once_with(42, 1001)
+    callback.message.edit_reply_markup.assert_awaited_once()
+
+
+def test_channel_confirmation_submits_score_for_callback_match(monkeypatch):
+    monkeypatch.setattr(admin_arena_v4, "ARENA_ADMIN_IDS", {1001})
+    submit = AsyncMock(return_value={"decision": "PLAYER_A_WIN"})
+    monkeypatch.setattr(admin_arena_v4, "submit_match_score", submit)
+    callback = SimpleNamespace(
+        data="arv4:m:confirm:42:3:2",
+        from_user=SimpleNamespace(id=1001),
+        message=SimpleNamespace(edit_reply_markup=AsyncMock()),
+        answer=AsyncMock(),
+    )
+
+    run(admin_arena_v4.confirm_channel_score(callback))
+
+    submit.assert_awaited_once_with(42, 1001, 3, 2)
+    callback.message.edit_reply_markup.assert_awaited_once_with(
+        reply_markup=None
+    )
+
+
+def test_legacy_channel_score_button_opens_new_inline_controls(monkeypatch):
+    monkeypatch.setattr(admin_arena_v4, "ARENA_ADMIN_IDS", {1001})
+    claim = AsyncMock(return_value={"status": "CLAIMED"})
+    monkeypatch.setattr(admin_arena_v4, "claim_match_review", claim)
+    callback = SimpleNamespace(
+        data="arv4:match:score:42",
+        from_user=SimpleNamespace(id=1001),
+        message=SimpleNamespace(edit_reply_markup=AsyncMock()),
+        answer=AsyncMock(),
+    )
+
+    run(admin_arena_v4.start_channel_score(callback))
+
+    claim.assert_awaited_once_with(42, 1001)
+    callback.message.edit_reply_markup.assert_awaited_once()
 
 
 def test_multi_admin_allowlist(monkeypatch):
