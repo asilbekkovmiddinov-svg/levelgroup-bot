@@ -10,6 +10,7 @@ MINIAPP_URL = (os.getenv("MINIAPP_URL") or "").strip()
 REQUIRED_CHANNELS = [
     {"chat_id": os.getenv("REQUIRED_CHANNEL_KINGPESSER", "@KingPessser").strip(), "title": "KingPesser 🇺🇿", "url": "https://t.me/KingPessser"},
     {"chat_id": os.getenv("REQUIRED_CHANNEL_ORDERS", "@levelgroup_buyurtmalar").strip(), "title": "LEVEL | Completed Orders", "url": "https://t.me/levelgroup_buyurtmalar"},
+    {"chat_id": os.getenv("REQUIRED_CHANNEL_RONIN", "@ronin_Efootbol").strip(), "title": "RONIN eFootball", "url": "https://t.me/ronin_Efootbol"},
 ]
 
 # Arena API foundation. User requests use verified Telegram MiniApp initData;
