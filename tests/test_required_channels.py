@@ -13,6 +13,7 @@ class RequiredChannelsTests(unittest.IsolatedAsyncioTestCase):
         bot.get_chat_member.side_effect = [
             SimpleNamespace(status=ChatMemberStatus.MEMBER),
             SimpleNamespace(status=ChatMemberStatus.LEFT),
+            SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR),
         ]
         result = await missing_channels(bot, 123)
         self.assertEqual(len(result), 1)
@@ -23,13 +24,14 @@ class RequiredChannelsTests(unittest.IsolatedAsyncioTestCase):
         bot.get_chat_member.side_effect = [
             SimpleNamespace(status=ChatMemberStatus.MEMBER),
             SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR),
+            SimpleNamespace(status=ChatMemberStatus.MEMBER),
         ]
         self.assertEqual(await missing_channels(bot, 123), [])
 
     async def test_verification_error_fails_closed(self):
         bot = SimpleNamespace(get_chat_member=AsyncMock(side_effect=RuntimeError("telegram unavailable")))
         result = await missing_channels(bot, 123)
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 3)
 
 
 if __name__ == "__main__":
