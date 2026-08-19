@@ -8,7 +8,7 @@ BACKEND_URL = os.getenv("BACKEND_URL")
 MINIAPP_URL = (os.getenv("MINIAPP_URL") or "").strip()
 
 REQUIRED_CHANNELS = [
-    {"chat_id": os.getenv("REQUIRED_CHANNEL_KINGPESSER", "@KingPessser").strip(), "title": "KingPesser 🇺🇿", "url": "https://t.me/KingPessser"},
+    {"chat_id": os.getenv("REQUIRED_CHANNEL_BEK_PESSERUZ", "@Bek_PesserUz").strip(), "title": "Bek PesserUz 🇺🇿", "url": "https://t.me/Bek_PesserUz"},
     {"chat_id": os.getenv("REQUIRED_CHANNEL_ORDERS", "@levelgroup_buyurtmalar").strip(), "title": "LEVEL | Completed Orders", "url": "https://t.me/levelgroup_buyurtmalar"},
     {"chat_id": os.getenv("REQUIRED_CHANNEL_RONIN", "@ronin_Efootbol").strip(), "title": "RONIN eFootball", "url": "https://t.me/ronin_Efootbol"},
 ]
