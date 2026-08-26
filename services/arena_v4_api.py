@@ -71,7 +71,8 @@ async def submit_match_score(
         "POST", f"/internal/arena/matches/{match_id}/score", internal=True,
         idempotency_key=f"bot:match-score:{match_id}:{admin_id}:{owner_score}:{opponent_score}",
         json={"admin_id": admin_id, "owner_score": owner_score,
-              "opponent_score": opponent_score, "reason": "TELEGRAM_CHANNEL"},
+              "opponent_score": opponent_score, "reason": "TELEGRAM_CHANNEL",
+              "allow_draw": True},
     )
 
 

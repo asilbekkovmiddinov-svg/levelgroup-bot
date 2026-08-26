@@ -420,13 +420,6 @@ async def confirm_channel_score(callback: CallbackQuery):
     if not is_arena_admin(callback.from_user.id):
         await callback.answer("Siz Arena admin emassiz.", show_alert=True)
         return
-    if owner_score == opponent_score:
-        await callback.answer(
-            "Teng hisob qabul qilinmaydi. Penalty natijasini kiriting.",
-            show_alert=True,
-        )
-        return
-
     async def action():
         return await submit_match_score(
             match_id, callback.from_user.id, owner_score, opponent_score
@@ -501,9 +494,6 @@ async def player_b_score(message: Message, state: FSMContext):
                 opponent_score=opponent_score,
             )
         else:
-            if data["owner_score"] == opponent_score:
-                await message.answer("Teng hisob qabul qilinmaydi. Penalty natijasini kiriting.")
-                return
             if data.get("match_id"):
                 result = await submit_match_score(
                     data["match_id"], message.from_user.id,
