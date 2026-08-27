@@ -57,6 +57,12 @@ async def wallet(message: Message):
                     callback_data="withdraw_start",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="🛍 Magazin",
+                    callback_data="shop:open",
+                )
+            ],
         ]
     )
 

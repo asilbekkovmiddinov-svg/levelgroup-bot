@@ -507,3 +507,53 @@ async def reject_shop_order(order_id: int, admin_id: int):
             json={"admin_id": admin_id, "reason": "Operator rad etdi"},
         ) as response:
             return await safe_json(response)
+
+
+
+async def get_shop_catalog(telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/internal/shop/catalog/{telegram_id}",
+            headers=internal_headers(),
+        ) as response:
+            return await safe_json(response)
+
+
+async def buy_shop_efc(
+    telegram_id: int,
+    efc_amount,
+    idempotency_key: str,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/internal/shop/buy-efc",
+            headers={
+                **internal_headers(),
+                "Idempotency-Key": idempotency_key,
+            },
+            json={
+                "telegram_id": telegram_id,
+                "efc_amount": str(efc_amount),
+            },
+        ) as response:
+            return await safe_json(response)
+
+
+async def buy_shop_tickets(
+    telegram_id: int,
+    quantity: int,
+    idempotency_key: str,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/internal/shop/buy-ticket",
+            headers={
+                **internal_headers(),
+                "Idempotency-Key": idempotency_key,
+            },
+            json={
+                "telegram_id": telegram_id,
+                "quantity": quantity,
+            },
+        ) as response:
+            return await safe_json(response)

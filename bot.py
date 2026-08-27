@@ -8,6 +8,7 @@ from config import BOT_TOKEN
 
 from handlers.start import router as start_router
 from handlers.wallet import router as wallet_router
+from handlers.shop import router as shop_router
 from handlers.deposit import router as deposit_router
 from handlers.withdraw import router as withdraw_router
 from handlers.p2p import router as p2p_router
@@ -46,6 +47,7 @@ dp.callback_query.middleware(UserSeenMiddleware())
 
 dp.include_router(start_router)
 dp.include_router(wallet_router)
+dp.include_router(shop_router)
 dp.include_router(deposit_router)
 dp.include_router(withdraw_router)
 dp.include_router(p2p_router)
