@@ -37,6 +37,8 @@ def parse_price(value: str) -> Decimal | None:
 
 
 def price_text(value) -> str:
+    if value is None:
+        return "Belgilanmagan"
     try:
         return f"{Decimal(str(value)):,.2f}".replace(",", " ")
     except (InvalidOperation, ValueError):
@@ -46,12 +48,8 @@ def price_text(value) -> str:
 def admin_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="💵 1 EFC narxini o‘zgartirish",
-            callback_data="shop_admin:efc",
-        )],
-        [InlineKeyboardButton(
-            text="🎟 Ticket narxini o‘zgartirish",
-            callback_data="shop_admin:ticket",
+            text="✏️ Narxlarni belgilash",
+            callback_data="shop_admin:set_prices",
         )],
         [InlineKeyboardButton(
             text="🔄 Yangilash",
@@ -90,7 +88,7 @@ async def send_admin_settings(message: Message):
         "🛠 <b>MAGAZIN NARXLARI</b>\n\n"
         f"💵 1 EFC = <b>{price_text(data['efc_price_uzs'])} so‘m</b>\n"
         f"🎟 1 Arena Ticket = <b>{price_text(data['ticket_price_efc'])} EFC</b>\n\n"
-        "Narxni o‘zgartirish uchun tugmani tanlang.",
+        "Magazin faqat ikkala narx belgilangandan keyin savdoni boshlaydi.",
         reply_markup=admin_keyboard(),
     )
 
@@ -113,18 +111,12 @@ async def shop_admin_open(callback: CallbackQuery, state: FSMContext):
     await send_admin_settings(callback.message)
 
 
-@router.callback_query(F.data == "shop_admin:efc")
+@router.callback_query(F.data == "shop_admin:set_prices")
 async def shop_admin_efc_start(callback: CallbackQuery, state: FSMContext):
     if not is_shop_admin(callback.from_user.id):
         await callback.answer("Ruxsat yo‘q", show_alert=True)
         return
-    payload = await get_shop_admin_settings()
-    data = settings_data(payload)
-    if data is None:
-        await callback.answer(payload.get("message", "Narx olinmadi"), show_alert=True)
-        return
     await state.set_state(ShopAdminState.efc_price)
-    await state.update_data(ticket_price_efc=str(data["ticket_price_efc"]))
     await callback.message.answer(
         "💵 <b>Yangi EFC narxi</b>\n\n"
         "1 EFC necha so‘m bo‘lishini yozing.\n"
@@ -143,43 +135,14 @@ async def shop_admin_efc_save(message: Message, state: FSMContext):
     if price is None:
         await message.answer("❌ 0 dan katta, ko‘pi bilan 2 kasr xonali narx yozing.")
         return
-    data = await state.get_data()
-    payload = await update_shop_admin_settings(
-        message.from_user.id,
-        price,
-        data["ticket_price_efc"],
-    )
-    result = settings_data(payload)
-    if result is None:
-        await message.answer(f"❌ {payload.get('message', 'Narx saqlanmadi')}")
-        return
-    await state.clear()
-    await message.answer(
-        "✅ <b>EFC narxi yangilandi</b>\n\n"
-        f"1 EFC = <b>{price_text(result['efc_price_uzs'])} so‘m</b>",
-        reply_markup=admin_keyboard(),
-    )
-
-
-@router.callback_query(F.data == "shop_admin:ticket")
-async def shop_admin_ticket_start(callback: CallbackQuery, state: FSMContext):
-    if not is_shop_admin(callback.from_user.id):
-        await callback.answer("Ruxsat yo‘q", show_alert=True)
-        return
-    payload = await get_shop_admin_settings()
-    data = settings_data(payload)
-    if data is None:
-        await callback.answer(payload.get("message", "Narx olinmadi"), show_alert=True)
-        return
+    await state.update_data(efc_price_uzs=str(price))
     await state.set_state(ShopAdminState.ticket_price)
-    await state.update_data(efc_price_uzs=str(data["efc_price_uzs"]))
-    await callback.message.answer(
+    await message.answer(
         "🎟 <b>Yangi Ticket narxi</b>\n\n"
         "1 Arena Ticket necha EFC bo‘lishini yozing.\n"
         "Masalan: <code>10</code>",
         reply_markup=cancel_keyboard(),
     )
-    await callback.answer()
 
 
 @router.message(ShopAdminState.ticket_price)
@@ -203,7 +166,8 @@ async def shop_admin_ticket_save(message: Message, state: FSMContext):
         return
     await state.clear()
     await message.answer(
-        "✅ <b>Ticket narxi yangilandi</b>\n\n"
-        f"1 Ticket = <b>{price_text(result['ticket_price_efc'])} EFC</b>",
+        "✅ <b>Magazin narxlari yangilandi</b>\n\n"
+        f"💵 1 EFC = <b>{price_text(result['efc_price_uzs'])} so‘m</b>\n"
+        f"🎟 1 Ticket = <b>{price_text(result['ticket_price_efc'])} EFC</b>",
         reply_markup=admin_keyboard(),
     )
