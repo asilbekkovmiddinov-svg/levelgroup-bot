@@ -20,6 +20,7 @@ from handlers.admin_arena_v4 import router as admin_arena_v4_router
 from handlers.admin_coin_chat import router as admin_coin_chat_router
 from handlers.admin_coin_shop import router as admin_coin_shop_router
 from handlers.admin_shop import router as admin_shop_router
+from handlers.admin_channel_post import router as admin_channel_post_router
 from handlers.arena_relay import router as arena_relay_router
 
 from middlewares.user_seen import UserSeenMiddleware
@@ -60,6 +61,7 @@ dp.include_router(admin_arena_v4_router)
 dp.include_router(admin_coin_chat_router)
 dp.include_router(admin_coin_shop_router)
 dp.include_router(admin_shop_router)
+dp.include_router(admin_channel_post_router)
 dp.include_router(arena_relay_router)
 
 
