@@ -557,3 +557,30 @@ async def buy_shop_tickets(
             },
         ) as response:
             return await safe_json(response)
+
+
+async def get_shop_admin_settings():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/internal/shop/admin/settings",
+            headers=internal_headers(),
+        ) as response:
+            return await safe_json(response)
+
+
+async def update_shop_admin_settings(
+    admin_id: int,
+    efc_price_uzs,
+    ticket_price_efc,
+):
+    async with aiohttp.ClientSession() as session:
+        async with session.put(
+            f"{BACKEND_URL}/internal/shop/admin/settings",
+            headers=internal_headers(),
+            json={
+                "admin_id": admin_id,
+                "efc_price_uzs": str(efc_price_uzs),
+                "ticket_price_efc": str(ticket_price_efc),
+            },
+        ) as response:
+            return await safe_json(response)

@@ -2,6 +2,7 @@ import pathlib
 import unittest
 from unittest.mock import patch
 
+from handlers.admin_shop import is_shop_admin, parse_price
 from handlers.shop import parse_efc_amount, parse_ticket_quantity
 from services import api
 
@@ -38,6 +39,10 @@ class FakeSession:
         self.calls.append(("POST", url, kwargs))
         return FakeResponse({"success": True, "data": {}})
 
+    def put(self, url, **kwargs):
+        self.calls.append(("PUT", url, kwargs))
+        return FakeResponse({"success": True, "data": {}})
+
 
 class ShopTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -61,6 +66,8 @@ class ShopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(parse_ticket_quantity("5"), 5)
         self.assertIsNone(parse_ticket_quantity("-1"))
         self.assertIsNone(parse_ticket_quantity("1.5"))
+        self.assertEqual(str(parse_price("7,50")), "7.50")
+        self.assertIsNone(parse_price("0"))
 
     async def test_shop_api_uses_internal_auth_and_idempotency(self):
         await api.get_shop_catalog(42)
@@ -87,6 +94,34 @@ class ShopTests(unittest.IsolatedAsyncioTestCase):
             FakeSession.calls[2][2]["headers"]["Idempotency-Key"],
             "ticket-key",
         )
+
+    async def test_admin_can_read_and_update_shop_prices(self):
+        await api.get_shop_admin_settings()
+        await api.update_shop_admin_settings(42, "750", "7.5")
+        self.assertEqual(FakeSession.calls[0][0], "GET")
+        self.assertEqual(
+            FakeSession.calls[0][1],
+            "https://backend.example/internal/shop/admin/settings",
+        )
+        self.assertEqual(FakeSession.calls[1][0], "PUT")
+        self.assertEqual(FakeSession.calls[1][2]["json"], {
+            "admin_id": 42,
+            "efc_price_uzs": "750",
+            "ticket_price_efc": "7.5",
+        })
+
+    def test_admin_price_handler_is_registered_and_guarded(self):
+        root = pathlib.Path(__file__).parents[1]
+        source = (root / "handlers" / "admin_shop.py").read_text(encoding="utf-8")
+        bot = (root / "bot.py").read_text(encoding="utf-8")
+        self.assertIn('Command("shop_admin")', source)
+        self.assertIn("is_shop_admin", source)
+        self.assertIn("dp.include_router(admin_shop_router)", bot)
+        with patch("handlers.admin_shop.ADMIN_USER_IDS", {42}), patch(
+            "handlers.admin_shop.ADMIN_CHAT_ID", 0
+        ):
+            self.assertTrue(is_shop_admin(42))
+            self.assertFalse(is_shop_admin(43))
 
     def test_shop_is_reachable_from_start_and_wallet(self):
         root = pathlib.Path(__file__).parents[1]
