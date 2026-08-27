@@ -43,12 +43,20 @@ def subscription_keyboard(
 
 def miniapp_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[
-            InlineKeyboardButton(
-                text="🚀 LEVEL_GROUP’ni ochish",
-                web_app=WebAppInfo(url=MINIAPP_URL),
-            )
-        ]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚀 LEVEL_GROUP’ni ochish",
+                    web_app=WebAppInfo(url=MINIAPP_URL),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🛍 Magazin",
+                    callback_data="shop:open",
+                )
+            ],
+        ]
     )
 
 
