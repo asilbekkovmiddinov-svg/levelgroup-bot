@@ -1,4 +1,4 @@
-from aiogram import F, Router
+from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -35,8 +35,6 @@ async def publish_game_post(message: Message) -> None:
         "👇 O‘yinni boshlash uchun tugmani bosing."
     )
 
-    # A URL/deep-link button is used for channel posts. Telegram's web_app
-    # InlineKeyboardButton is restricted to private user↔bot chats.
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🎮 O‘ynash", url=MINIAPP_URL)]
