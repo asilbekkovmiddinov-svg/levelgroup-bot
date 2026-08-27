@@ -188,10 +188,13 @@ async def arena_ready_finish_worker():
 
 
 async def main():
+    print("🚀 LEVEL_GROUP Bot ishga tushdi...")
+
     asyncio.create_task(p2p_timeout_worker())
     asyncio.create_task(arena_ready_start_worker())
     asyncio.create_task(arena_ready_finish_worker())
-    asyncio.create_task(CampaignDeliveryWorker(bot).run_forever())
+    asyncio.create_task(CampaignDeliveryWorker(bot).run())
+
     await dp.start_polling(bot)
 
 
