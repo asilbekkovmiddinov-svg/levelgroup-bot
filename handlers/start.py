@@ -4,9 +4,10 @@ from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardRemove, WebAppInfo
 
 from config import MINIAPP_URL, REQUIRED_CHANNELS
+from handlers.admin_shop import is_shop_admin
+from handlers.arena_relay import arena_token_from_start, send_match_context
 from services.api import register_internal_user
 from services.referral import referral_code_from_start
-from handlers.arena_relay import arena_token_from_start, send_match_context
 
 router = Router()
 
@@ -41,23 +42,29 @@ def subscription_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def miniapp_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🚀 LEVEL_GROUP’ni ochish",
-                    web_app=WebAppInfo(url=MINIAPP_URL),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🛍 Magazin",
-                    callback_data="shop:open",
-                )
-            ],
-        ]
-    )
+def miniapp_keyboard(*, admin: bool = False) -> InlineKeyboardMarkup:
+    rows = []
+    if MINIAPP_URL:
+        rows.append([
+            InlineKeyboardButton(
+                text="🚀 LEVEL_GROUP’ni ochish",
+                web_app=WebAppInfo(url=MINIAPP_URL),
+            )
+        ])
+    rows.append([
+        InlineKeyboardButton(
+            text="🛍 Magazin",
+            callback_data="shop:open",
+        )
+    ])
+    if admin:
+        rows.append([
+            InlineKeyboardButton(
+                text="🛠 Magazin narxlarini boshqarish",
+                callback_data="shop_admin:open",
+            )
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 async def send_subscription_gate(
@@ -101,11 +108,16 @@ async def start_command(message: Message, bot: Bot):
         await send_match_context(message, arena_token)
         return
 
-    if MINIAPP_URL:
-        await message.answer(
-            "LEVEL_GROUP MiniApp’ni ochish uchun quyidagi tugmani bosing.",
-            reply_markup=miniapp_keyboard(),
-        )
+    text = (
+        "LEVEL_GROUP MiniApp’ni ochish yoki Magazinga kirish uchun "
+        "quyidagi tugmani bosing."
+        if MINIAPP_URL
+        else "LEVEL_GROUP Magaziniga kirish uchun quyidagi tugmani bosing."
+    )
+    await message.answer(
+        text,
+        reply_markup=miniapp_keyboard(admin=is_shop_admin(message.from_user.id)),
+    )
 
 
 @router.callback_query(F.data.startswith("check_required_channels"))
@@ -131,10 +143,8 @@ async def check_required_channels(callback: CallbackQuery, bot: Bot):
             telegram_id=callback.from_user.id,
         )
         return
-    if MINIAPP_URL:
-        await callback.message.edit_text(
-            "✅ Barcha kanallarga obuna tasdiqlandi.\n\nLEVEL_GROUP’ni ochishingiz mumkin.",
-            reply_markup=miniapp_keyboard(),
-        )
-    else:
-        await callback.message.edit_text("✅ Barcha kanallarga obuna tasdiqlandi.")
+    await callback.message.edit_text(
+        "✅ Barcha kanallarga obuna tasdiqlandi.\n\n"
+        "LEVEL_GROUP bo‘limlarini ochishingiz mumkin.",
+        reply_markup=miniapp_keyboard(admin=is_shop_admin(callback.from_user.id)),
+    )
