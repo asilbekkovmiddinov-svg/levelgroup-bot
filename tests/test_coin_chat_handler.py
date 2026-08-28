@@ -38,6 +38,8 @@ def test_coin_shop_uses_channel_claim_and_terminal_flow_without_order_chat():
     assert "ADMIN_CHAT_ID" in source
     assert "COMPLETED_ORDERS_CHANNEL_ID" in source
     assert "Order raqami" in source
+    assert 'data.get("ticket_bonus_awarded")' in source
+    assert "Ticket bonus" in source
     completed=source.split("COMPLETED_ORDERS_CHANNEL_ID", 2)[-1]
     assert "Order raqami" not in completed
     assert "Buyurtma chati" not in source

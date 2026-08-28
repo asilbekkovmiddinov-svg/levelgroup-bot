@@ -84,13 +84,19 @@ async def shop_order_action(callback: CallbackQuery):
     username = line_value(source, "👤 Username:")
     operator = f"@{callback.from_user.username}" if callback.from_user.username else callback.from_user.full_name
     finished_at = data.get("completed_at") if data["status"] == "COMPLETED" else data.get("rejected_at")
+    ticket_bonus = data.get("ticket_bonus_awarded")
+    bonus_line = (
+        f"\n🎟 Ticket bonus: +{int(ticket_bonus)}"
+        if data["status"] == "COMPLETED" and ticket_bonus
+        else ""
+    )
     await callback.bot.send_message(
         COMPLETED_ORDERS_CHANNEL_ID,
         f"{'✅' if data['status'] == 'COMPLETED' else '❌'} Coin buyurtma yakunlandi\n\n"
         f"🔢 Tartib raqami: {data['id']}\n"
         f"👤 Username: {username}\n"
         f"📦 Coin paketi: {data['product_title']}\n"
-        f"🪙 Miqdori: {data['coins_amount']} Coin\n"
+        f"🪙 Miqdori: {data['coins_amount']} Coin{bonus_line}\n"
         f"🛡 Operator: {operator}\n"
         f"📌 Holati: {data['status']}\n"
         f"🕒 Yakunlangan vaqt: {tashkent_time(finished_at)}",
