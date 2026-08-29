@@ -7,7 +7,12 @@ from config import ARENA_ADMIN_IDS
 
 
 router = Router()
-_MATCH_ID_RE = re.compile(r"(?:DB\s*#|Match\s*#)(\d+)", re.IGNORECASE)
+# Supports backend-style IDs ("DB #35", "Match #35") and the actual
+# result-channel title format ("⚔️ ARENA — №35 MATCH").
+_MATCH_ID_RE = re.compile(
+    r"(?:DB\s*#|Match\s*#|ARENA\s*[—–-]?\s*(?:№|#)\s*)(\d+)",
+    re.IGNORECASE,
+)
 
 
 def _edit_keyboard(match_id: int) -> InlineKeyboardMarkup:
@@ -45,6 +50,7 @@ async def add_old_result_edit_button(message: Message):
 
     if not match_id:
         await message.reply(
+            "Match raqamini xabardan aniqlab bo‘lmadi. "
             "Eski Arena natijasi xabariga reply qilib <code>/arena_edit</code> yuboring "
             "yoki <code>/arena_edit MATCH_ID</code> yozing."
         )
@@ -55,8 +61,10 @@ async def add_old_result_edit_button(message: Message):
             await target.edit_reply_markup(reply_markup=_edit_keyboard(match_id))
             await message.reply(f"✅ Match #{match_id} uchun tahrirlash tugmasi qo‘shildi.")
             return
-        except Exception:
-            pass
+        except Exception as error:
+            await message.reply(
+                f"⚠️ Eski xabarning tugmasini o‘zgartirib bo‘lmadi. Match #{match_id} uchun alohida tugma yuborildi."
+            )
 
     await message.reply(
         f"🎮 Match #{match_id}\n\nEski natijani tahrirlash:",
