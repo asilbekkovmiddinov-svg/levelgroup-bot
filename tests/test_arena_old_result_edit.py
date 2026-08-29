@@ -28,6 +28,12 @@ class ArenaOldResultEditTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found.group(1), "35")
 
+    def test_channel_sender_is_supported_without_disabling_admin_check(self):
+        self.assertIn('message.sender_chat', HANDLER)
+        self.assertIn('message.sender_chat.id == message.chat.id', HANDLER)
+        self.assertIn('message.from_user.id in ARENA_ADMIN_IDS', HANDLER)
+        self.assertIn('message.chat.type in {"channel", "supergroup"}', HANDLER)
+
     def test_handler_is_registered(self):
         self.assertIn('admin_arena_old_result_router', BOT)
         self.assertIn('dp.include_router(admin_arena_old_result_router)', BOT)
