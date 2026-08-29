@@ -96,6 +96,9 @@ async def send_admin_settings(message: Message):
 @router.message(Command("shop_admin"))
 async def shop_admin_command(message: Message, state: FSMContext):
     if not is_shop_admin(message.from_user.id):
+        await message.answer(
+            "⛔ Magazin narxlarini boshqarish uchun admin ruxsati yo‘q."
+        )
         return
     await state.clear()
     await send_admin_settings(message)

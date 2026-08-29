@@ -3,7 +3,8 @@ import unittest
 from unittest.mock import patch
 
 from handlers.admin_shop import is_shop_admin, parse_price
-from handlers.shop import parse_efc_amount, parse_ticket_quantity
+from handlers.shop import parse_efc_amount, parse_ticket_quantity, shop_keyboard
+from handlers.start import miniapp_keyboard
 from services import api
 
 
@@ -131,6 +132,43 @@ class ShopTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('callback_data="shop:open"', start)
         self.assertIn('callback_data="shop:open"', wallet)
         self.assertIn("dp.include_router(shop_router)", bot)
+
+    def test_shop_admin_control_is_visible_only_to_admins(self):
+        user_callbacks = [
+            button.callback_data
+            for row in shop_keyboard(admin=False).inline_keyboard
+            for button in row
+        ]
+        admin_callbacks = [
+            button.callback_data
+            for row in shop_keyboard(admin=True).inline_keyboard
+            for button in row
+        ]
+        self.assertNotIn("shop_admin:open", user_callbacks)
+        self.assertIn("shop_admin:open", admin_callbacks)
+
+    def test_start_shop_does_not_depend_on_miniapp_url(self):
+        with patch("handlers.start.MINIAPP_URL", ""):
+            callbacks = [
+                button.callback_data
+                for row in miniapp_keyboard().inline_keyboard
+                for button in row
+            ]
+        self.assertIn("shop:open", callbacks)
+
+    def test_start_exposes_shop_price_control_only_to_admins(self):
+        user_callbacks = [
+            button.callback_data
+            for row in miniapp_keyboard(admin=False).inline_keyboard
+            for button in row
+        ]
+        admin_callbacks = [
+            button.callback_data
+            for row in miniapp_keyboard(admin=True).inline_keyboard
+            for button in row
+        ]
+        self.assertNotIn("shop_admin:open", user_callbacks)
+        self.assertIn("shop_admin:open", admin_callbacks)
 
 
 if __name__ == "__main__":

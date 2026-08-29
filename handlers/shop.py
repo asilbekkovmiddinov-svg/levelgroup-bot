@@ -6,6 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from handlers.admin_shop import is_shop_admin
 from services.api import buy_shop_efc, buy_shop_tickets, get_shop_catalog
 
 
@@ -44,12 +45,18 @@ def money(value) -> str:
         return "0.00"
 
 
-def shop_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+def shop_keyboard(*, admin: bool = False) -> InlineKeyboardMarkup:
+    rows = [
         [InlineKeyboardButton(text="🪙 EFC sotib olish", callback_data="shop:efc")],
         [InlineKeyboardButton(text="🎟 Arena Ticket olish", callback_data="shop:ticket")],
-        [InlineKeyboardButton(text="🔄 Yangilash", callback_data="shop:open")],
-    ])
+    ]
+    if admin:
+        rows.append([InlineKeyboardButton(
+            text="🛠 Magazin narxlarini boshqarish",
+            callback_data="shop_admin:open",
+        )])
+    rows.append([InlineKeyboardButton(text="🔄 Yangilash", callback_data="shop:open")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
@@ -65,9 +72,9 @@ def _catalog_data(payload: dict) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-async def send_shop_menu(message: Message):
+async def send_shop_menu(message: Message, *, telegram_id: int):
     try:
-        payload = await get_shop_catalog(message.chat.id)
+        payload = await get_shop_catalog(telegram_id)
     except Exception:
         payload = None
     data = _catalog_data(payload or {})
@@ -85,7 +92,7 @@ async def send_shop_menu(message: Message):
         f"🎟 Arena Ticket: <b>{int(data['ticket_balance'])}</b>\n\n"
         f"📌 1 EFC = <b>{money(data['efc_price_uzs'])} so‘m</b>\n"
         f"📌 1 Ticket = <b>{money(data['ticket_price_efc'])} EFC</b>",
-        reply_markup=shop_keyboard(),
+        reply_markup=shop_keyboard(admin=is_shop_admin(telegram_id)),
     )
 
 
@@ -93,14 +100,14 @@ async def send_shop_menu(message: Message):
 @router.message(F.text == "🛍 Magazin")
 async def shop_command(message: Message, state: FSMContext):
     await state.clear()
-    await send_shop_menu(message)
+    await send_shop_menu(message, telegram_id=message.from_user.id)
 
 
 @router.callback_query(F.data == "shop:open")
 async def shop_open(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
-    await send_shop_menu(callback.message)
+    await send_shop_menu(callback.message, telegram_id=callback.from_user.id)
 
 
 @router.callback_query(F.data == "shop:efc")
