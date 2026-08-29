@@ -76,6 +76,22 @@ async def submit_match_score(
     )
 
 
+async def correct_finished_match_result(
+    match_id: int, admin_id: int, owner_score: int, opponent_score: int,
+):
+    return await client.request(
+        "POST",
+        f"/internal/arena/matches/{match_id}/correct-result",
+        internal=True,
+        json={
+            "admin_id": admin_id,
+            "owner_score": owner_score,
+            "opponent_score": opponent_score,
+            "reason": "TELEGRAM_CHANNEL_FINISHED_RESULT_CORRECTION",
+        },
+    )
+
+
 async def cancel_channel_match(match_id: int, admin_id: int, reason: str):
     return await client.request(
         "POST", f"/internal/arena/matches/{match_id}/cancel", internal=True,
@@ -135,5 +151,6 @@ __all__ = [
     "submit_appeal_decision",
     "submit_score",
     "submit_match_score",
+    "correct_finished_match_result",
     "cancel_channel_match",
 ]
