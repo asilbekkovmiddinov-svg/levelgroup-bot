@@ -28,11 +28,14 @@ class ArenaOldResultEditTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found.group(1), "35")
 
-    def test_channel_sender_is_supported_without_disabling_admin_check(self):
-        self.assertIn('message.sender_chat', HANDLER)
+    def test_channel_post_has_its_own_observer(self):
+        self.assertIn('@router.channel_post(F.text.startswith("/arena_edit"))', HANDLER)
+        self.assertIn('channel_post=True', HANDLER)
         self.assertIn('message.sender_chat.id == message.chat.id', HANDLER)
+
+    def test_normal_messages_still_require_configured_admin(self):
         self.assertIn('message.from_user.id in ARENA_ADMIN_IDS', HANDLER)
-        self.assertIn('message.chat.type in {"channel", "supergroup"}', HANDLER)
+        self.assertIn('channel_post and message.sender_chat', HANDLER)
 
     def test_handler_is_registered(self):
         self.assertIn('admin_arena_old_result_router', BOT)
