@@ -92,10 +92,7 @@ async def p2p_timeout_worker():
 
                     for user_id in [owner_id, requester_id]:
                         try:
-                            await bot.send_message(
-                                chat_id=user_id,
-                                text=text,
-                            )
+                            await bot.send_message(chat_id=user_id, text=text)
                         except Exception:
                             pass
 
@@ -160,9 +157,12 @@ async def arena_ready_finish_worker():
                     elif status == "TECHNICAL_REVIEW":
                         notification = ArenaNotification.TECHNICAL_REVIEW
                         detail = "Admin texnik holatni ko‘rib chiqadi."
-                    else:
+                    elif status == "CANCELLED":
                         notification = ArenaNotification.CANCELLED
-                        detail = "Tayyorlik tasdiqlanmagani uchun match bekor qilindi."
+                        detail = "Tayyorlik tasdiqlanmadi. Locked EFC balansga qaytarildi."
+                    else:
+                        notification = ArenaNotification.READY_EXPIRED
+                        detail = "Match holati yangilandi."
 
                     for user_id in [
                         updated_match["creator_telegram_id"],
@@ -174,7 +174,6 @@ async def arena_ready_finish_worker():
                                 user_id,
                                 notification,
                                 match_id=updated_match["id"],
-                                amount=updated_match["efc_amount"],
                                 detail=detail,
                             )
 
@@ -188,10 +187,13 @@ async def arena_ready_finish_worker():
 
 
 async def main():
+    print("🚀 LEVEL_GROUP Bot ishga tushdi...")
+
     asyncio.create_task(p2p_timeout_worker())
     asyncio.create_task(arena_ready_start_worker())
     asyncio.create_task(arena_ready_finish_worker())
     asyncio.create_task(CampaignDeliveryWorker(bot).run())
+
     await dp.start_polling(bot)
 
 
