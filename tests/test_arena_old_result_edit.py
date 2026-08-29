@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -17,6 +18,15 @@ class ArenaOldResultEditTests(unittest.TestCase):
     def test_match_id_can_be_supplied_directly(self):
         self.assertIn('parts[1].strip().isdigit()', HANDLER)
         self.assertIn('arv4:e:start:', HANDLER)
+
+    def test_actual_channel_title_format_is_supported(self):
+        pattern = re.compile(
+            r"(?:DB\s*#|Match\s*#|ARENA\s*[—–-]?\s*(?:№|#)\s*)(\d+)",
+            re.IGNORECASE,
+        )
+        found = pattern.search("⚔️ ARENA — №35 MATCH")
+        self.assertIsNotNone(found)
+        self.assertEqual(found.group(1), "35")
 
     def test_handler_is_registered(self):
         self.assertIn('admin_arena_old_result_router', BOT)
