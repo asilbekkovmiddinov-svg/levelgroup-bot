@@ -24,6 +24,24 @@ def _edit_keyboard(match_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
+def _is_allowed_sender(message: Message) -> bool:
+    """Allow configured Arena admins or anonymous/channel posts in the result channel.
+
+    Telegram sends channel/anonymous-admin messages with ``sender_chat`` instead of
+    the real admin in ``from_user``.  In that case only trust the sender when it is
+    the same chat where the command was posted; this prevents arbitrary external
+    channels from bypassing the normal admin-id check.
+    """
+    if message.from_user and message.from_user.id in ARENA_ADMIN_IDS:
+        return True
+    return bool(
+        message.sender_chat
+        and message.chat
+        and message.sender_chat.id == message.chat.id
+        and message.chat.type in {"channel", "supergroup"}
+    )
+
+
 @router.message(F.text.startswith("/arena_edit"))
 async def add_old_result_edit_button(message: Message):
     """Attach the finished-result edit button to an old Arena channel post.
@@ -32,7 +50,7 @@ async def add_old_result_edit_button(message: Message):
       - reply to the old Arena result post with /arena_edit; or
       - /arena_edit <match_id>
     """
-    if not message.from_user or message.from_user.id not in ARENA_ADMIN_IDS:
+    if not _is_allowed_sender(message):
         await message.reply("❌ Siz Arena admin emassiz.")
         return
 
@@ -61,7 +79,7 @@ async def add_old_result_edit_button(message: Message):
             await target.edit_reply_markup(reply_markup=_edit_keyboard(match_id))
             await message.reply(f"✅ Match #{match_id} uchun tahrirlash tugmasi qo‘shildi.")
             return
-        except Exception as error:
+        except Exception:
             await message.reply(
                 f"⚠️ Eski xabarning tugmasini o‘zgartirib bo‘lmadi. Match #{match_id} uchun alohida tugma yuborildi."
             )
