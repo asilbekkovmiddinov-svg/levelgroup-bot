@@ -17,6 +17,7 @@ from handlers.admin_wheel import router as admin_wheel_router
 from handlers.chat_id import router as chat_id_router
 from handlers.admin_orders import router as admin_orders_router
 from handlers.admin_arena_v4 import router as admin_arena_v4_router
+from handlers.admin_arena_old_result import router as admin_arena_old_result_router
 from handlers.admin_coin_chat import router as admin_coin_chat_router
 from handlers.admin_coin_shop import router as admin_coin_shop_router
 from handlers.admin_shop import router as admin_shop_router
@@ -58,6 +59,7 @@ dp.include_router(admin_wheel_router)
 dp.include_router(chat_id_router)
 dp.include_router(admin_orders_router)
 dp.include_router(admin_arena_v4_router)
+dp.include_router(admin_arena_old_result_router)
 dp.include_router(admin_coin_chat_router)
 dp.include_router(admin_coin_shop_router)
 dp.include_router(admin_shop_router)
@@ -158,12 +160,9 @@ async def arena_ready_finish_worker():
                     elif status == "TECHNICAL_REVIEW":
                         notification = ArenaNotification.TECHNICAL_REVIEW
                         detail = "Admin texnik holatni ko‘rib chiqadi."
-                    elif status == "CANCELLED":
-                        notification = ArenaNotification.CANCELLED
-                        detail = "Tayyorlik tasdiqlanmadi. Locked EFC balansga qaytarildi."
                     else:
-                        notification = ArenaNotification.READY_EXPIRED
-                        detail = "Match holati yangilandi."
+                        notification = ArenaNotification.CANCELLED
+                        detail = "Tayyorlik tasdiqlanmagani uchun match bekor qilindi."
 
                     for user_id in [
                         updated_match["creator_telegram_id"],
@@ -175,6 +174,7 @@ async def arena_ready_finish_worker():
                                 user_id,
                                 notification,
                                 match_id=updated_match["id"],
+                                amount=updated_match["efc_amount"],
                                 detail=detail,
                             )
 
@@ -188,13 +188,10 @@ async def arena_ready_finish_worker():
 
 
 async def main():
-    print("🚀 LEVEL_GROUP Bot ishga tushdi...")
-
     asyncio.create_task(p2p_timeout_worker())
     asyncio.create_task(arena_ready_start_worker())
     asyncio.create_task(arena_ready_finish_worker())
     asyncio.create_task(CampaignDeliveryWorker(bot).run())
-
     await dp.start_polling(bot)
 
 
