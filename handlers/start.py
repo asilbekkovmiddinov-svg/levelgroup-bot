@@ -3,20 +3,37 @@ from aiogram.enums import ChatMemberStatus
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardRemove, WebAppInfo
 
-from config import MINIAPP_URL, REQUIRED_CHANNELS
-from services.api import register_internal_user
+from config import MINIAPP_URL
+from services.api import get_subscription_channels, register_internal_user
 from services.referral import referral_code_from_start
 from handlers.arena_relay import arena_token_from_start, send_match_context
 
 router = Router()
 
 
-async def missing_channels(bot: Bot, user_id: int) -> list[dict]:
+class SubscriptionConfigUnavailable(RuntimeError):
+    pass
+
+
+async def missing_channels(
+    bot: Bot, user_id: int, channels: list[dict] | None = None
+) -> list[dict]:
+    if channels is None:
+        try:
+            channels = await get_subscription_channels()
+        except Exception as error:
+            raise SubscriptionConfigUnavailable from error
     missing = []
-    for channel in REQUIRED_CHANNELS:
+    for channel in channels:
         try:
             member = await bot.get_chat_member(channel["chat_id"], user_id)
-            if member.status in {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}:
+            if (
+                member.status in {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}
+                or (
+                    member.status == ChatMemberStatus.RESTRICTED
+                    and not getattr(member, "is_member", False)
+                )
+            ):
                 missing.append(channel)
         except Exception:
             # Fail closed: never bypass a required subscription when Telegram
@@ -63,7 +80,15 @@ def miniapp_keyboard() -> InlineKeyboardMarkup:
 async def send_subscription_gate(
     message: Message, bot: Bot, arena_token: str | None = None
 ) -> bool:
-    missing = await missing_channels(bot, message.from_user.id)
+    try:
+        missing = await missing_channels(bot, message.from_user.id)
+    except SubscriptionConfigUnavailable:
+        await message.answer(
+            "⚠️ Majburiy obunani tekshirish xizmati vaqtincha ishlamayapti.\n\n"
+            "Birozdan keyin «🔄 Qayta tekshirish» tugmasini bosing.",
+            reply_markup=subscription_keyboard([], arena_token),
+        )
+        return True
     if not missing:
         return False
     await message.answer(
@@ -114,7 +139,14 @@ async def check_required_channels(callback: CallbackQuery, bot: Bot):
     arena_token = arena_token_from_start(
         f"/start {payload}"
     ) if payload else None
-    missing = await missing_channels(bot, callback.from_user.id)
+    try:
+        missing = await missing_channels(bot, callback.from_user.id)
+    except SubscriptionConfigUnavailable:
+        await callback.answer(
+            "Tekshiruv xizmati vaqtincha ishlamayapti. Qayta urinib ko‘ring.",
+            show_alert=True,
+        )
+        return
     if missing:
         await callback.answer("❌ Hali barcha kanallarga obuna bo‘lmagansiz.", show_alert=True)
         await callback.message.edit_reply_markup(

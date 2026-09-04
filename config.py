@@ -7,9 +7,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 BACKEND_URL = os.getenv("BACKEND_URL")
 MINIAPP_URL = (os.getenv("MINIAPP_URL") or "").strip()
 
-# Required channel subscription is temporarily disabled.
-REQUIRED_CHANNELS = []
-
 # Arena API foundation. User requests use verified Telegram MiniApp initData;
 # worker/admin requests use the backend's separate internal authentication.
 ARENA_API_URL = os.getenv("ARENA_API_URL", BACKEND_URL or "").rstrip("/")
