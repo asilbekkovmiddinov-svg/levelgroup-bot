@@ -62,6 +62,55 @@ async def register_internal_user(
             return await safe_json(response)
 
 
+async def get_subscription_channels() -> list[dict]:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BACKEND_URL}/internal/subscription/channels",
+            headers=internal_headers(),
+        ) as response:
+            payload = await safe_json(response)
+            if response.status != 200 or not isinstance(payload, list):
+                raise RuntimeError(payload.get("message", "Kanallarni olib bo‘lmadi") if isinstance(payload, dict) else "Kanallarni olib bo‘lmadi")
+            return payload
+
+
+async def create_subscription_channel(data: dict) -> dict:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{BACKEND_URL}/internal/subscription/channels",
+            headers=internal_headers(),
+            json=data,
+        ) as response:
+            payload = await safe_json(response)
+            if response.status != 201 or not isinstance(payload, dict):
+                raise RuntimeError(payload.get("message", "Kanalni qo‘shib bo‘lmadi") if isinstance(payload, dict) else "Kanalni qo‘shib bo‘lmadi")
+            return payload
+
+
+async def update_subscription_channel(channel_id: int, data: dict) -> dict:
+    async with aiohttp.ClientSession() as session:
+        async with session.put(
+            f"{BACKEND_URL}/internal/subscription/channels/{channel_id}",
+            headers=internal_headers(),
+            json=data,
+        ) as response:
+            payload = await safe_json(response)
+            if response.status != 200 or not isinstance(payload, dict):
+                raise RuntimeError(payload.get("message", "Kanalni almashtirib bo‘lmadi") if isinstance(payload, dict) else "Kanalni almashtirib bo‘lmadi")
+            return payload
+
+
+async def delete_subscription_channel(channel_id: int) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.delete(
+            f"{BACKEND_URL}/internal/subscription/channels/{channel_id}",
+            headers=internal_headers(),
+        ) as response:
+            if response.status != 204:
+                payload = await safe_json(response)
+                raise RuntimeError(payload.get("message", "Kanalni o‘chirib bo‘lmadi") if isinstance(payload, dict) else "Kanalni o‘chirib bo‘lmadi")
+
+
 async def create_deposit(telegram_id: int, amount: int, idempotency_key: str):
     async with aiohttp.ClientSession() as session:
         async with session.post(
