@@ -54,11 +54,59 @@ async def fail_submission(submission_id: int, error: str):
     )
 
 
+async def list_seasons():
+    return await client.request(
+        "GET",
+        "/internal/arena/v5/seasons",
+        internal=True,
+    )
+
+
+async def create_season(
+    *, admin_id: int, name: str, duration_days: int, prize_text: str | None
+):
+    return await client.request(
+        "POST",
+        "/internal/arena/v5/seasons",
+        internal=True,
+        json={
+            "admin_id": admin_id,
+            "name": name,
+            "duration_days": duration_days,
+            "prize_text": prize_text,
+        },
+    )
+
+
+async def finish_season(season_id: int, *, admin_id: int):
+    return await client.request(
+        "POST",
+        f"/internal/arena/v5/seasons/{season_id}/finish",
+        internal=True,
+        json={"admin_id": admin_id},
+    )
+
+
+async def update_season_duration(
+    season_id: int, *, admin_id: int, duration_days: int
+):
+    return await client.request(
+        "PATCH",
+        f"/internal/arena/v5/seasons/{season_id}/duration",
+        internal=True,
+        json={"admin_id": admin_id, "duration_days": duration_days},
+    )
+
+
 __all__ = [
     "ArenaApiError",
     "active_match",
     "complete_submission",
+    "create_season",
     "fail_submission",
+    "finish_season",
+    "list_seasons",
+    "update_season_duration",
     "prepare_submission",
     "validate_relay",
 ]

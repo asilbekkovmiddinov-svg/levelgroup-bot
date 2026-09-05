@@ -153,7 +153,7 @@ def test_channel_confirmation_submits_score_for_callback_match(monkeypatch):
 
     submit.assert_awaited_once_with(42, 1001, 3, 2)
     callback.message.edit_reply_markup.assert_awaited_once_with(
-        reply_markup=None
+        reply_markup=admin_arena_v4.finished_result_edit_keyboard(42)
     )
 
 
